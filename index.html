@@ -1,99 +1,251 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Basit Uydu Geçişleri (TLE → Passes)</title>
+  <title>Passes — TLE Pass Finder</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family: Inter, system-ui, sans-serif; padding: 18px; max-width:900px; margin:auto; }
-    textarea{width:100%;height:120px}
-    input, select {padding:6px;margin:6px 0;width:100%;}
-    pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}
+    :root {
+      --bg: #0f1724;
+      --card: #0b1220;
+      --muted: #9aa4b2;
+      --accent: #3b82f6;
+      --glass: rgba(255,255,255,0.03);
+      --radius: 12px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,#061226 0%, #071428 100%);
+      color:#e6eef8;
+      padding:20px;
+      -webkit-font-smoothing:antialiased;
+    }
+    .container{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .card{background:var(--card);padding:16px;border-radius:var(--radius);box-shadow:0 6px 24px rgba(2,6,23,0.6);margin-bottom:16px}
+    label{display:block;margin-bottom:6px;font-size:13px;color:var(--muted)}
+    input[type="text"], input[type="number"], select, textarea {
+      width:100%;
+      padding:10px 12px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.04);
+      background:var(--glass);
+      color:inherit;
+      resize:vertical;
+      font-size:13px;
+    }
+    textarea{min-height:120px;font-family:Menlo,monospace}
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+    .small{font-size:12px;color:var(--muted)}
+    button{
+      background:var(--accent);
+      color:white;
+      padding:10px 14px;
+      border:0;border-radius:8px;
+      cursor:pointer;font-weight:600;
+    }
+    .muted-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
     table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{border:1px solid #ddd;padding:6px;text-align:left}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left;font-size:13px}
+    th{color:var(--muted);font-weight:600}
+    .flex{display:flex;align-items:center;gap:8px}
+    .inline{display:inline-flex;align-items:center;gap:8px}
+    .top-actions{display:flex;gap:8px;flex-wrap:wrap}
+    a.link{color:var(--accent);text-decoration:none;font-size:13px}
+    .footer{color:var(--muted);font-size:13px;margin-top:8px}
+    .status{color:var(--muted);font-size:13px;margin-top:6px}
+    @media (max-width:720px){
+      .row{flex-direction:column}
+    }
   </style>
 </head>
 <body>
-  <h1>Uydu Geçişleri (TLE → Pass Finder)</h1>
-  <p>Bu sayfa TLE kullanarak verilen gözlemci konumu için uydu geçişlerini hesaplar ve maksimum elevasyona göre sıralar.</p>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Passes — TLE Pass Finder</h1>
+        <p class="lead">Compute satellite passes from TLE, sort by maximum elevation, export results as CSV.</p>
+      </div>
+      <div class="top-actions">
+        <button id="computeBtn">Compute Passes</button>
+        <button id="downloadCsvBtn" class="muted-btn">Export CSV</button>
+        <button id="clearBtn" class="muted-btn">Clear Results</button>
+      </div>
+    </header>
 
-  <label>TLE (iki satır — ya da başlık + 2 satır):</label>
-  <textarea id="tleInput">ISS (ZARYA)
+    <!-- Configuration card -->
+    <section class="card" id="configCard">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div style="min-width:260px;">
+          <label for="tleSource">TLE Source</label>
+          <select id="tleSource">
+            <option value="manual">Manual / Paste TLE below</option>
+            <option value="https://celestrak.org/NORAD/elements/stations.txt">ISS & Stations (CelesTrak)</option>
+            <option value="https://celestrak.org/NORAD/elements/science.txt">Science (HST etc.) (CelesTrak)</option>
+            <option value="https://celestrak.org/NORAD/elements/noaa.txt">NOAA (Weather sats) (CelesTrak)</option>
+            <option value="https://celestrak.org/NORAD/elements/starlink.txt">Starlink (CelesTrak)</option>
+          </select>
+          <div class="small" style="margin-top:6px">Choose a built-in source to auto-load TLEs, or select <strong>Manual</strong> to paste your own TLEs.</div>
+        </div>
+
+        <div style="min-width:220px;">
+          <label>Observer location</label>
+          <div class="row" style="margin-bottom:6px">
+            <input id="lat" type="number" step="0.0001" value="41.0082" placeholder="Latitude">
+            <input id="lon" type="number" step="0.0001" value="28.9784" placeholder="Longitude">
+            <input id="height" type="number" step="1" value="50" placeholder="Height (m)">
+          </div>
+          <div class="row">
+            <button id="useGeolocation" class="muted-btn">Use Browser Geolocation</button>
+            <div class="small" style="align-self:center">Default: Istanbul (41.0082, 28.9784)</div>
+          </div>
+        </div>
+
+        <div style="min-width:220px;">
+          <label>Computation settings</label>
+          <div class="row">
+            <input id="hours" type="number" value="24" min="1" title="Hours (from now)">
+            <input id="step" type="number" value="10" min="1" title="Time step (s)">
+          </div>
+          <div class="small" style="margin-top:6px">Hours (from now) and sampling step in seconds.</div>
+        </div>
+
+        <div style="min-width:220px;">
+          <label>Threshold & Display</label>
+          <input id="elThreshold" type="number" value="5" min="0" title="Elevation threshold (deg)">
+          <div style="margin-top:8px" class="inline">
+            <label class="small">Show times as</label>
+            <select id="timeMode">
+              <option value="local">Local time</option>
+              <option value="utc">UTC</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <hr style="opacity:0.06;margin:12px 0">
+
+      <label for="tleInput">TLE input (manual or auto-loaded). You may paste multiple TLEs; accept formats with or without title lines.</label>
+      <textarea id="tleInput" placeholder="Paste TLEs here. Example:
+ISS (ZARYA)
 1 25544U 98067A   25344.51782528  .00001264  00000-0  29628-4 0  9991
-2 25544  51.6442 203.3076 0005631  39.9456 320.2334 15.50068472295969</textarea>
+2 25544  51.6442 203.3076 0005631  39.9456 320.2334 15.50068472295969"></textarea>
 
-  <label>Gözlemci (lat, lon, yükseklik metre):</label>
-  <input id="lat" placeholder="Enlem (°) örn: 40.988" value="41.0082"/>
-  <input id="lon" placeholder="Boylam (°) örn: 29.025" value="28.9784"/>
-  <input id="height" placeholder="Yükseklik (m)" value="50"/>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button id="loadTleBtn" class="muted-btn">Load selected TLE source</button>
+        <button id="exampleBtn" class="muted-btn">Load Example (ISS)</button>
+        <div class="status" id="sourceStatus">No external TLE loaded.</div>
+      </div>
+    </section>
 
-  <label>Hesap aralığı ve adımlama:</label>
-  <input id="hours" type="number" value="24" min="1" /> <small>saat (başlangıç: şimdi)</small>
-  <input id="step" type="number" value="10" min="1" /> <small>saniye (zaman çözünürlüğü)</small>
+    <!-- Results -->
+    <section class="card" id="resultsCard">
+      <h2 style="margin-top:0">Results</h2>
+      <div class="status" id="status">No computation yet.</div>
+      <div id="resultsContainer"></div>
+    </section>
 
-  <label>Elevasyon eşiği (geçiş kabul eşiği, derece):</label>
-  <input id="elThreshold" type="number" value="5" min="0" />
-
-  <button id="runBtn">Geçişleri Hesapla</button>
-
-  <h2>Sonuçlar</h2>
-  <div id="status">Beklemede...</div>
-  <div id="results"></div>
+    <footer class="footer">
+      <div>Built with <a class="link" href="https://github.com/shashwatak/satellite-js" target="_blank">satellite.js</a> • TLE sources from CelesTrak.</div>
+      <div style="margin-top:6px" class="small">Note: This is a sampling-based pass finder. For higher accuracy reduce step size or add interpolation.</div>
+    </footer>
+  </div>
 
   <!-- satellite.js CDN -->
   <script src="https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js"></script>
+
   <script>
-    // Helper: parse TLE text into array of (name,line1,line2)
-    function parseTLEs(text){
+    // ------------------------------------------------------------------------
+    // Pass Finder Phase 1 (English-only variables/comments/UI)
+    // - sampling-based pass detection
+    // - automatic TLE fetch from known CelesTrak endpoints
+    // - display times in local or UTC
+    // - CSV export (download)
+    // ------------------------------------------------------------------------
+
+    // DOM elements
+    const tleSourceEl = document.getElementById('tleSource');
+    const tleInputEl = document.getElementById('tleInput');
+    const loadTleBtn = document.getElementById('loadTleBtn');
+    const exampleBtn = document.getElementById('exampleBtn');
+    const sourceStatusEl = document.getElementById('sourceStatus');
+    const computeBtn = document.getElementById('computeBtn');
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const statusEl = document.getElementById('status');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const useGeoBtn = document.getElementById('useGeolocation');
+
+    // inputs
+    const latEl = document.getElementById('lat');
+    const lonEl = document.getElementById('lon');
+    const heightEl = document.getElementById('height');
+    const hoursEl = document.getElementById('hours');
+    const stepEl = document.getElementById('step');
+    const elThresholdEl = document.getElementById('elThreshold');
+    const timeModeEl = document.getElementById('timeMode');
+
+    // application state
+    let latestPassResults = []; // array of pass objects
+    let currentTleSourceContent = '';
+
+    // Helper: format date according to time mode
+    function formatDateForDisplay(dateObj) {
+      if(timeModeEl.value === 'utc') {
+        return new Date(dateObj.getTime()).toISOString().replace('T', ' ').replace('Z', ' UTC');
+      } else {
+        // local time with offset
+        return new Date(dateObj.getTime()).toLocaleString();
+      }
+    }
+
+    // Helper: parse TLE text into array of [name, line1, line2]
+    function parseTLEs(text) {
       const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length>0);
       const groups = [];
       for(let i=0;i<lines.length;){
-        if(lines[i].startsWith('1 ') || lines[i].startsWith('2 ')){
-          // no title line -> assume pairs
+        if(lines[i].startsWith('1 ') || lines[i].startsWith('2 ')) {
+          // No title line -> assume pairs
           const l1 = lines[i], l2 = lines[i+1];
           groups.push(['', l1, l2]);
-          i+=2;
+          i += 2;
         } else {
-          // title line present
+          // Title present
           const title = lines[i];
           const l1 = lines[i+1], l2 = lines[i+2];
           groups.push([title, l1, l2]);
-          i+=3;
+          i += 3;
         }
       }
       return groups;
     }
 
-    // Compute look angles (az, el, range) using satellite.js helper
-    function getLookAngles(satrec, date, observerGd){
-      // propagate
-      const jsDate = date;
+    // Get look angles (az, el, range) using satellite.js
+    function computeLookAngles(satrec, jsDate, observerGeodetic) {
       const gmst = satellite.gstime(jsDate);
       const eci = satellite.propagate(satrec, jsDate);
-      if(!eci.position) return null;
+      if(!eci || !eci.position) return null;
       const positionEci = eci.position;
-      const velocityEci = eci.velocity;
       const positionEcf = satellite.eciToEcf(positionEci, gmst);
-      const geodetic = satellite.eciToGeodetic(positionEci, gmst);
-      const lat = satellite.degreesLat(geodetic.latitude);
-      const lon = satellite.degreesLong(geodetic.longitude);
-      const heightKm = geodetic.height; // km
-      const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
+      const look = satellite.ecfToLookAngles(observerGeodetic, positionEcf);
       return {
-        azimuth: satellite.degreesLong(lookAngles.azimuth),
-        elevation: satellite.degreesLat(lookAngles.elevation),
-        rangeKm: lookAngles.rangeSat
+        azimuthDeg: satellite.degreesLong(look.azimuth),
+        elevationDeg: satellite.degreesLat(look.elevation),
+        rangeKm: look.rangeSat
       };
     }
 
-    // Main pass-finding routine (sampling-based)
-    async function findPasses(tleSet, observer, startDate, hours, stepSec, elThreshold){
+    // Sampling-based pass finder for a single TLE set
+    async function findPassesForTle(tleTuple, observer, startDate, hours, stepSec, elevationThreshold) {
       const results = [];
       const endDate = new Date(startDate.getTime() + hours*3600*1000);
-      const satrec = satellite.twoline2satrec(tleSet[1], tleSet[2]);
-
-      // observer geodetic object for satellite.js (lat rad, lon rad, height km)
-      const observerGd = {
+      const satrec = satellite.twoline2satrec(tleTuple[1], tleTuple[2]);
+      const observerGeodetic = {
         longitude: satellite.degreesToRadians(observer.lon),
         latitude: satellite.degreesToRadians(observer.lat),
         height: observer.height/1000.0
@@ -101,98 +253,235 @@
 
       let inPass = false;
       let passStart = null;
-      let passMaxEl = -999;
+      let passMaxEl = -Infinity;
       let passMaxElTime = null;
-      // iterate times
-      for(let t = new Date(startDate.getTime()); t <= endDate; t = new Date(t.getTime() + stepSec*1000)){
-        const la = getLookAngles(satrec, t, observerGd);
-        if(!la){ continue; }
-        const el = la.elevation; // degrees
-        if(el >= elThreshold){
-          if(!inPass){
-            // pass starts
+
+      for(let t = new Date(startDate.getTime()); t <= endDate; t = new Date(t.getTime() + stepSec*1000)) {
+        const look = computeLookAngles(satrec, t, observerGeodetic);
+        if(!look) continue;
+        const el = look.elevationDeg;
+        if(el >= elevationThreshold) {
+          if(!inPass) {
             inPass = true;
             passStart = new Date(t.getTime());
             passMaxEl = el;
             passMaxElTime = new Date(t.getTime());
           } else {
-            // continuing pass - check max
-            if(el > passMaxEl){
+            if(el > passMaxEl) {
               passMaxEl = el;
               passMaxElTime = new Date(t.getTime());
             }
           }
         } else {
-          if(inPass){
-            // pass ends at previous step
+          if(inPass) {
+            // pass ended at previous step
             const passEnd = new Date(t.getTime() - stepSec*1000);
             results.push({
-              start: passStart.toISOString(),
-              end: passEnd.toISOString(),
+              satName: tleTuple[0] || tleTuple[1].slice(2,7),
+              startUTC: passStart.toISOString(),
+              endUTC: passEnd.toISOString(),
               maxElevationDeg: passMaxEl,
-              maxElevationTime: passMaxElTime.toISOString()
+              maxElevationUTC: passMaxElTime.toISOString()
             });
             inPass = false;
             passStart = null;
+            passMaxEl = -Infinity;
+            passMaxElTime = null;
           }
         }
       }
-      // if ended while in pass
-      if(inPass){
-        const passEnd = endDate;
+
+      // if still in pass at the final time slice
+      if(inPass) {
         results.push({
-          start: passStart.toISOString(),
-          end: passEnd.toISOString(),
+          satName: tleTuple[0] || tleTuple[1].slice(2,7),
+          startUTC: passStart.toISOString(),
+          endUTC: endDate.toISOString(),
           maxElevationDeg: passMaxEl,
-          maxElevationTime: passMaxElTime.toISOString()
+          maxElevationUTC: passMaxElTime.toISOString()
         });
       }
+
       return results;
     }
 
-    // UI hooks
-    document.getElementById('runBtn').addEventListener('click', async ()=>{
-      const tleText = document.getElementById('tleInput').value;
-      const lat = parseFloat(document.getElementById('lat').value);
-      const lon = parseFloat(document.getElementById('lon').value);
-      const height = parseFloat(document.getElementById('height').value);
-      const hours = parseFloat(document.getElementById('hours').value);
-      const step = parseFloat(document.getElementById('step').value);
-      const elThreshold = parseFloat(document.getElementById('elThreshold').value);
-
-      const tles = parseTLEs(tleText);
+    // Aggregate pass-finding for many TLEs
+    async function findPasses(tleTuples, observer, hours, stepSec, elevationThreshold) {
       const start = new Date();
-      document.getElementById('status').textContent = 'Hesaplanıyor...';
-      const allPasses = [];
-      for(const tle of tles){
-        try{
-          const passes = await findPasses(tle, {lat,lon,height}, start, hours, step, elThreshold);
-          // attach name if present
-          const name = tle[0] || (tle[1]||'').slice(2,7);
-          for(const p of passes){
-            allPasses.push(Object.assign({satName: name}, p));
-          }
-        } catch(e){
-          console.error(e);
+      statusEl.textContent = 'Computing passes...';
+      const all = [];
+      for(const tle of tleTuples) {
+        try {
+          const passes = await findPassesForTle(tle, observer, start, hours, stepSec, elevationThreshold);
+          for(const p of passes) all.push(p);
+        } catch(err) {
+          console.error('Error computing passes for', tle, err);
         }
       }
-      // sort by max elevation descending
-      allPasses.sort((a,b)=>b.maxElevationDeg - a.maxElevationDeg);
+      // Sort by max elevation descending
+      all.sort((a,b)=>b.maxElevationDeg - a.maxElevationDeg);
+      statusEl.textContent = `Done — ${all.length} pass(es) found.`;
+      return all;
+    }
 
-      // render table
-      const container = document.getElementById('results');
-      if(allPasses.length===0){
-        container.innerHTML = '<p>Bulunan geçiş yok.</p>';
-      } else {
-        let html = '<table><thead><tr><th>Uydu</th><th>Başlangıç (UTC)</th><th>Bitiş (UTC)</th><th>Maks Elev (°)</th><th>Maks Elev Zamanı (UTC)</th></tr></thead><tbody>';
-        for(const p of allPasses){
-          html += `<tr><td>${p.satName}</td><td>${p.start}</td><td>${p.end}</td><td>${p.maxElevationDeg.toFixed(2)}</td><td>${p.maxElevationTime}</td></tr>`;
-        }
-        html += '</tbody></table>';
-        container.innerHTML = html;
+    // Render results table
+    function renderResults(passes) {
+      latestPassResults = passes; // update state
+      if(passes.length === 0) {
+        resultsContainer.innerHTML = '<div class="small">No passes found for the given time window and threshold.</div>';
+        return;
       }
-      document.getElementById('status').textContent = `Tamamlandı — ${allPasses.length} geçiş bulundu.`;
+
+      let html = '<table><thead><tr><th>Satellite</th><th>Start</th><th>End</th><th>Max Elev (°)</th><th>Max Elev Time</th></tr></thead><tbody>';
+      for(const p of passes) {
+        const startDate = new Date(p.startUTC);
+        const endDate = new Date(p.endUTC);
+        const maxDate = new Date(p.maxElevationUTC);
+        html += `<tr>
+          <td>${p.satName}</td>
+          <td>${formatDateForDisplay(startDate)}</td>
+          <td>${formatDateForDisplay(endDate)}</td>
+          <td>${(p.maxElevationDeg||0).toFixed(2)}</td>
+          <td>${formatDateForDisplay(maxDate)}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      resultsContainer.innerHTML = html;
+    }
+
+    // CSV export - downloads a file
+    function exportCsv(passes) {
+      if(!passes || passes.length===0) {
+        alert('No results to export.');
+        return;
+      }
+      const header = ['satellite','start_utc','end_utc','max_elevation_deg','max_elevation_utc'];
+      const rows = passes.map(p => [
+        p.satName,
+        p.startUTC,
+        p.endUTC,
+        p.maxElevationDeg.toFixed(4),
+        p.maxElevationUTC
+      ]);
+      const csvContent = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'passes.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Load TLE from remote source (CORS: celestrak allows cross-origin)
+    async function loadTleFromUrl(url) {
+      try {
+        sourceStatusEl.textContent = `Loading TLEs from ${url} ...`;
+        const resp = await fetch(url);
+        if(!resp.ok) throw new Error('Network error ' + resp.status);
+        const txt = await resp.text();
+        currentTleSourceContent = txt;
+        tleInputEl.value = txt;
+        sourceStatusEl.textContent = `Loaded TLEs from ${url}.`;
+      } catch (err) {
+        console.error(err);
+        sourceStatusEl.textContent = `Failed to load: ${err.message}`;
+        alert('Failed to load TLEs from selected source. You can paste TLEs manually.');
+      }
+    }
+
+    // Event handlers
+    loadTleBtn.addEventListener('click', async () => {
+      const src = tleSourceEl.value;
+      if(src === 'manual') {
+        sourceStatusEl.textContent = 'Manual TLE mode. Paste or edit TLEs in the box.';
+        return;
+      }
+      await loadTleFromUrl(src);
     });
+
+    exampleBtn.addEventListener('click', () => {
+      // Small ISS example (fast)
+      const example = `ISS (ZARYA)
+1 25544U 98067A   25344.51782528  .00001264  00000-0  29628-4 0  9991
+2 25544  51.6442 203.3076 0005631  39.9456 320.2334 15.50068472295969`;
+      tleInputEl.value = example;
+      sourceStatusEl.textContent = 'Example ISS TLE loaded.';
+    });
+
+    useGeoBtn.addEventListener('click', () => {
+      if(!navigator.geolocation) {
+        alert('Geolocation not available in this browser.');
+        return;
+      }
+      sourceStatusEl.textContent = 'Requesting browser geolocation...';
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lon = pos.coords.longitude.toFixed(6);
+        const h = (pos.coords.altitude !== null) ? Math.round(pos.coords.altitude) : 50;
+        latEl.value = lat;
+        lonEl.value = lon;
+        heightEl.value = h;
+        sourceStatusEl.textContent = `Observer set to (${lat}, ${lon}).`;
+      }, err => {
+        sourceStatusEl.textContent = 'Geolocation denied or failed.';
+        alert('Geolocation failed or permission denied.');
+      }, {enableHighAccuracy:true, timeout:10000});
+    });
+
+    computeBtn.addEventListener('click', async () => {
+      // Read inputs
+      const lat = parseFloat(latEl.value);
+      const lon = parseFloat(lonEl.value);
+      const height = parseFloat(heightEl.value);
+      const hours = parseFloat(hoursEl.value);
+      const step = parseFloat(stepEl.value);
+      const elThreshold = parseFloat(elThresholdEl.value);
+
+      if(Number.isNaN(lat) || Number.isNaN(lon)) {
+        alert('Please provide a valid observer latitude and longitude.');
+        return;
+      }
+      // Parse TLEs
+      const tleText = tleInputEl.value.trim();
+      if(!tleText) {
+        alert('Please provide TLE(s) in the input area or select a source to load them.');
+        return;
+      }
+      const tleTuples = parseTLEs(tleText);
+      if(tleTuples.length === 0) {
+        alert('No valid TLEs found in input.');
+        return;
+      }
+
+      // Compute passes
+      const observer = {lat, lon, height};
+      statusEl.textContent = 'Starting pass computation...';
+      const passes = await findPasses(tleTuples, observer, hours, step, elThreshold);
+      renderResults(passes);
+    });
+
+    downloadCsvBtn.addEventListener('click', () => {
+      exportCsv(latestPassResults);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      resultsContainer.innerHTML = '';
+      latestPassResults = [];
+      statusEl.textContent = 'Cleared results.';
+    });
+
+    // Initialization: show example TLE and default messages
+    tleInputEl.value = `ISS (ZARYA)
+1 25544U 98067A   25344.51782528  .00001264  00000-0  29628-4 0  9991
+2 25544  51.6442 203.3076 0005631  39.9456 320.2334 15.50068472295969`;
+    sourceStatusEl.textContent = 'Example ISS loaded. Use "Load selected TLE source" to fetch lists.';
+    statusEl.textContent = 'Ready. Click "Compute Passes".';
+
+    // Optional: detect time zone hint (no action needed, kept for UX)
+    // END OF SCRIPT
   </script>
 </body>
 </html>
