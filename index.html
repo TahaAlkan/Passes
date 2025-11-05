@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <title>Basit Uydu Geçişleri (TLE → Passes)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; padding: 18px; max-width:900px; margin:auto; }
+    textarea{width:100%;height:120px}
+    input, select {padding:6px;margin:6px 0;width:100%;}
+    pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #ddd;padding:6px;text-align:left}
+  </style>
+</head>
+<body>
+  <h1>Uydu Geçişleri (TLE → Pass Finder)</h1>
+  <p>Bu sayfa TLE kullanarak verilen gözlemci konumu için uydu geçişlerini hesaplar ve maksimum elevasyona göre sıralar.</p>
+
+  <label>TLE (iki satır — ya da başlık + 2 satır):</label>
+  <textarea id="tleInput">ISS (ZARYA)
+1 25544U 98067A   25344.51782528  .00001264  00000-0  29628-4 0  9991
+2 25544  51.6442 203.3076 0005631  39.9456 320.2334 15.50068472295969</textarea>
+
+  <label>Gözlemci (lat, lon, yükseklik metre):</label>
+  <input id="lat" placeholder="Enlem (°) örn: 40.988" value="41.0082"/>
+  <input id="lon" placeholder="Boylam (°) örn: 29.025" value="28.9784"/>
+  <input id="height" placeholder="Yükseklik (m)" value="50"/>
+
+  <label>Hesap aralığı ve adımlama:</label>
+  <input id="hours" type="number" value="24" min="1" /> <small>saat (başlangıç: şimdi)</small>
+  <input id="step" type="number" value="10" min="1" /> <small>saniye (zaman çözünürlüğü)</small>
+
+  <label>Elevasyon eşiği (geçiş kabul eşiği, derece):</label>
+  <input id="elThreshold" type="number" value="5" min="0" />
+
+  <button id="runBtn">Geçişleri Hesapla</button>
+
+  <h2>Sonuçlar</h2>
+  <div id="status">Beklemede...</div>
+  <div id="results"></div>
+
+  <!-- satellite.js CDN -->
+  <script src="https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js"></script>
+  <script>
+    // Helper: parse TLE text into array of (name,line1,line2)
+    function parseTLEs(text){
+      const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length>0);
+      const groups = [];
+      for(let i=0;i<lines.length;){
+        if(lines[i].startsWith('1 ') || lines[i].startsWith('2 ')){
+          // no title line -> assume pairs
+          const l1 = lines[i], l2 = lines[i+1];
+          groups.push(['', l1, l2]);
+          i+=2;
+        } else {
+          // title line present
+          const title = lines[i];
+          const l1 = lines[i+1], l2 = lines[i+2];
+          groups.push([title, l1, l2]);
+          i+=3;
+        }
+      }
+      return groups;
+    }
+
+    // Compute look angles (az, el, range) using satellite.js helper
+    function getLookAngles(satrec, date, observerGd){
+      // propagate
+      const jsDate = date;
+      const gmst = satellite.gstime(jsDate);
+      const eci = satellite.propagate(satrec, jsDate);
+      if(!eci.position) return null;
+      const positionEci = eci.position;
+      const velocityEci = eci.velocity;
+      const positionEcf = satellite.eciToEcf(positionEci, gmst);
+      const geodetic = satellite.eciToGeodetic(positionEci, gmst);
+      const lat = satellite.degreesLat(geodetic.latitude);
+      const lon = satellite.degreesLong(geodetic.longitude);
+      const heightKm = geodetic.height; // km
+      const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
+      return {
+        azimuth: satellite.degreesLong(lookAngles.azimuth),
+        elevation: satellite.degreesLat(lookAngles.elevation),
+        rangeKm: lookAngles.rangeSat
+      };
+    }
+
+    // Main pass-finding routine (sampling-based)
+    async function findPasses(tleSet, observer, startDate, hours, stepSec, elThreshold){
+      const results = [];
+      const endDate = new Date(startDate.getTime() + hours*3600*1000);
+      const satrec = satellite.twoline2satrec(tleSet[1], tleSet[2]);
+
+      // observer geodetic object for satellite.js (lat rad, lon rad, height km)
+      const observerGd = {
+        longitude: satellite.degreesToRadians(observer.lon),
+        latitude: satellite.degreesToRadians(observer.lat),
+        height: observer.height/1000.0
+      };
+
+      let inPass = false;
+      let passStart = null;
+      let passMaxEl = -999;
+      let passMaxElTime = null;
+      // iterate times
+      for(let t = new Date(startDate.getTime()); t <= endDate; t = new Date(t.getTime() + stepSec*1000)){
+        const la = getLookAngles(satrec, t, observerGd);
+        if(!la){ continue; }
+        const el = la.elevation; // degrees
+        if(el >= elThreshold){
+          if(!inPass){
+            // pass starts
+            inPass = true;
+            passStart = new Date(t.getTime());
+            passMaxEl = el;
+            passMaxElTime = new Date(t.getTime());
+          } else {
+            // continuing pass - check max
+            if(el > passMaxEl){
+              passMaxEl = el;
+              passMaxElTime = new Date(t.getTime());
+            }
+          }
+        } else {
+          if(inPass){
+            // pass ends at previous step
+            const passEnd = new Date(t.getTime() - stepSec*1000);
+            results.push({
+              start: passStart.toISOString(),
+              end: passEnd.toISOString(),
+              maxElevationDeg: passMaxEl,
+              maxElevationTime: passMaxElTime.toISOString()
+            });
+            inPass = false;
+            passStart = null;
+          }
+        }
+      }
+      // if ended while in pass
+      if(inPass){
+        const passEnd = endDate;
+        results.push({
+          start: passStart.toISOString(),
+          end: passEnd.toISOString(),
+          maxElevationDeg: passMaxEl,
+          maxElevationTime: passMaxElTime.toISOString()
+        });
+      }
+      return results;
+    }
+
+    // UI hooks
+    document.getElementById('runBtn').addEventListener('click', async ()=>{
+      const tleText = document.getElementById('tleInput').value;
+      const lat = parseFloat(document.getElementById('lat').value);
+      const lon = parseFloat(document.getElementById('lon').value);
+      const height = parseFloat(document.getElementById('height').value);
+      const hours = parseFloat(document.getElementById('hours').value);
+      const step = parseFloat(document.getElementById('step').value);
+      const elThreshold = parseFloat(document.getElementById('elThreshold').value);
+
+      const tles = parseTLEs(tleText);
+      const start = new Date();
+      document.getElementById('status').textContent = 'Hesaplanıyor...';
+      const allPasses = [];
+      for(const tle of tles){
+        try{
+          const passes = await findPasses(tle, {lat,lon,height}, start, hours, step, elThreshold);
+          // attach name if present
+          const name = tle[0] || (tle[1]||'').slice(2,7);
+          for(const p of passes){
+            allPasses.push(Object.assign({satName: name}, p));
+          }
+        } catch(e){
+          console.error(e);
+        }
+      }
+      // sort by max elevation descending
+      allPasses.sort((a,b)=>b.maxElevationDeg - a.maxElevationDeg);
+
+      // render table
+      const container = document.getElementById('results');
+      if(allPasses.length===0){
+        container.innerHTML = '<p>Bulunan geçiş yok.</p>';
+      } else {
+        let html = '<table><thead><tr><th>Uydu</th><th>Başlangıç (UTC)</th><th>Bitiş (UTC)</th><th>Maks Elev (°)</th><th>Maks Elev Zamanı (UTC)</th></tr></thead><tbody>';
+        for(const p of allPasses){
+          html += `<tr><td>${p.satName}</td><td>${p.start}</td><td>${p.end}</td><td>${p.maxElevationDeg.toFixed(2)}</td><td>${p.maxElevationTime}</td></tr>`;
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }
+      document.getElementById('status').textContent = `Tamamlandı — ${allPasses.length} geçiş bulundu.`;
+    });
+  </script>
+</body>
+</html>
