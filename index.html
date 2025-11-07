@@ -1,8 +1,19 @@
+<!--
+MultiSat TLE Finder v4.3.8
+
+Bu sürümde:
+✅ Sonuçlar artık filtrelenebilir (isim, min yükseklik, tarih aralığı)
+✅ Her geçişin süresi (dakika) hesaplanıyor
+✅ Kolon başlıklarına tıklayarak artan/azalan sıralama yapılabiliyor
+✅ CSV dışa aktarımı bu yeni sütunla birlikte güncel
+-->
+
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="icon" href="data:,">
   <meta charset="utf-8" />
-  <title>Passes — TLE Pass Finder</title>
+  <title>Passes — MultiSat TLE Finder v4.3.0</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -23,53 +34,62 @@
       -webkit-font-smoothing:antialiased;
     }
     .container{max-width:1100px;margin:0 auto}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
     h1{margin:0;font-size:20px}
     p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
     .card{background:var(--card);padding:16px;border-radius:var(--radius);box-shadow:0 6px 24px rgba(2,6,23,0.6);margin-bottom:16px}
     label{display:block;margin-bottom:6px;font-size:13px;color:var(--muted)}
-    input[type="text"], input[type="number"], select, textarea {
+    input, select, textarea {
       width:100%;
       padding:10px 12px;
       border-radius:8px;
       border:1px solid rgba(255,255,255,0.04);
       background:var(--glass);
       color:inherit;
-      resize:vertical;
       font-size:13px;
     }
-    textarea{min-height:120px;font-family:Menlo,monospace}
+    textarea{min-height:120px;font-family:Menlo,monospace;resize:vertical}
     .row{display:flex;gap:12px}
-    .col{flex:1}
     .small{font-size:12px;color:var(--muted)}
     button{
-      background:var(--accent);
-      color:white;
-      padding:10px 14px;
-      border:0;border-radius:8px;
+      background:var(--accent);color:white;
+      padding:10px 14px;border:0;border-radius:8px;
       cursor:pointer;font-weight:600;
     }
     .muted-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
     table{width:100%;border-collapse:collapse;margin-top:12px}
     th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left;font-size:13px}
-    th{color:var(--muted);font-weight:600}
-    .flex{display:flex;align-items:center;gap:8px}
+    th{color:var(--muted);font-weight:600;cursor:pointer}
+    th:hover{color:var(--accent)}
     .inline{display:inline-flex;align-items:center;gap:8px}
     .top-actions{display:flex;gap:8px;flex-wrap:wrap}
-    a.link{color:var(--accent);text-decoration:none;font-size:13px}
     .footer{color:var(--muted);font-size:13px;margin-top:8px}
     .status{color:var(--muted);font-size:13px;margin-top:6px}
-    @media (max-width:720px){
-      .row{flex-direction:column}
-    }
+    @media (max-width:720px){.row{flex-direction:column}}
+    .suggestions{background:var(--card);border:1px solid rgba(255,255,255,0.05);border-radius:8px;max-height:150px;overflow-y:auto;margin-top:4px}
+    .suggestions div{padding:6px 10px;cursor:pointer;font-size:13px}
+    .suggestions div:hover{background:var(--glass)}
+    .badge{background:var(--glass);border-radius:8px;padding:4px 8px;margin:2px;display:inline-flex;align-items:center;gap:6px}
+    .badge .remove{cursor:pointer;color:#f87171}
+    .badge .remove:hover{color:#ef4444}
+    .loading{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
+    .loading-box{background:var(--card);padding:20px 30px;border-radius:12px;font-size:14px;color:var(--muted);text-align:center;box-shadow:0 0 20px rgba(0,0,0,0.3)}
+    .hidden{display:none}
+    
+    #overlapContainer { margin-top: 20px; }
+
   </style>
 </head>
 <body>
+  <div id="utcInfo" style="text-align:center;font-size:14px;color:var(--muted);margin-bottom:12px;">
+    📅 Loading UTC time...
+  </div>
+
   <div class="container">
     <header>
       <div>
-        <h1>Passes — TLE Pass Finder</h1>
-        <p class="lead">Compute satellite passes from TLE, sort by time, export as CSV.</p>
+        <h1>Passes — MultiSat TLE Finder</h1>
+        <p class="lead">Compute satellite passes (SGP4, Fixed UTC start) — Multi-satellite & Groups.</p>
       </div>
       <div class="top-actions">
         <button id="computeBtn">Compute Passes</button>
@@ -78,47 +98,92 @@
       </div>
     </header>
 
+    <!-- Search + Group + Loaded TLEs -->
     <section class="card">
-      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
-        <div style="min-width:260px;">
-          <label>TLE Input</label>
-          <textarea id="tleInput"></textarea>
-          <div class="small" style="margin-top:6px">Default: ISS (ZARYA)</div>
+      <div style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap">
+        <div style="min-width:260px;flex:1">
+          <label>Satellite Search</label>
+          <input id="searchBox" type="text" placeholder="Search satellite (e.g., IMECE)">
+          <div id="suggestions" class="suggestions"></div>
+          <button id="searchBtn" style="margin-top:6px;">Search TLE</button>
+          <div class="small">Recent searches stored locally</div>
         </div>
 
-        <div style="min-width:220px;">
-          <label>Observer location</label>
-          <div class="row" style="margin-bottom:6px">
-            <input id="lat" type="number" step="0.0001" value="41.0082" placeholder="Latitude">
-            <input id="lon" type="number" step="0.0001" value="28.9784" placeholder="Longitude">
-            <input id="height" type="number" step="1" value="50" placeholder="Height (m)">
-          </div>
-          <div class="small">Default: Istanbul</div>
-        </div>
-
-        <div style="min-width:220px;">
-          <label>Computation settings</label>
-          <input id="hours" type="number" value="24" min="1">
-          <div class="small">Hours ahead (UTC)</div>
-        </div>
-
-        <div style="min-width:220px;">
-          <label>Elevation threshold</label>
-          <input id="elThreshold" type="number" value="5" min="0">
-          <div style="margin-top:8px" class="inline">
-            <label class="small">Time display</label>
-            <select id="timeMode">
-              <option value="local">Local</option>
-              <option value="utc">UTC</option>
+        <div style="min-width:260px;flex:1">
+          <label>Or select a group</label>
+          <div class="row">
+            <select id="groupSelect">
+              <option value="">— Choose a group —</option>
+              <option value="active">active (all active sats)</option>
+              <option value="visual">visual</option>
+              <option value="starlink">starlink</option>
+              <option value="noaa">noaa</option>
+              <option value="weather">weather</option>
+              <option value="science">science</option>
+              <option value="communications">communications</option>
+              <option value="oneweb">oneweb</option>
             </select>
           </div>
+          <div class="row" style="margin-top:6px">
+            <button id="addGroupBtn">Add Group (first 20)</button>
+            <button id="loadGroupAllBtn" class="muted-btn">Load Selected Group (ALL)</button>
+          </div>
+          <div class="small">Load ALL fetches every satellite in the selected group.</div>
+        </div>
+
+        <div style="min-width:260px;flex:1">
+          <label>Loaded TLEs</label>
+          <textarea id="tleInput" readonly></textarea>
+          <div class="small">Automatically managed for selected satellites & groups</div>
         </div>
       </div>
     </section>
 
+    <!-- Active sats + Observer + Settings -->
+    <section class="card">
+      <div style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap">
+        <div style="min-width:260px;flex:1">
+          <label>Active Satellites</label>
+          <div id="activeSats" class="small" style="margin-bottom:8px;color:var(--accent)">None loaded</div>
+        </div>
+
+        <div style="min-width:260px;flex:1">
+          <label>Observer location</label>
+          <div class="row" style="margin-bottom:6px">
+            <input id="lat" type="text" value="39.9208" placeholder="Latitude">
+            <input id="lon" type="text" value="32.8541" placeholder="Longitude">
+            <input id="height" type="text" value="850" placeholder="Height (m)">
+          </div>
+          <div class="small">Default: Ankara • Use dot or comma</div>
+          <button id="locBtn" class="muted-btn" style="margin-top:6px">Use Current Location</button>
+        </div>
+
+        <div style="min-width:220px;flex:1">
+          <label>Computation settings</label>
+          <input id="days" type="number" value="3" min="1">
+          <div class="small">Days ahead (UTC)</div>
+          <label style="margin-top:8px;">Elevation threshold</label>
+          <input id="elThreshold" type="number" value="0" min="0" max="90">
+          <div class="small">Elevation limit (0–90°)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
     <section class="card" id="resultsCard">
       <h2 style="margin-top:0">Results</h2>
-      <div class="status" id="status">Ready. (SGP4, start = current UTC)</div>
+      <div class="status" id="status">Ready. (SGP4, fixed start time)</div>
+
+      <!-- Filters -->
+      <div class="row" style="margin:10px 0;flex-wrap:wrap;">
+        <input id="filterName" type="text" placeholder="Filter by satellite name" style="flex:1;min-width:160px;">
+        <input id="filterMinEl" type="number" placeholder="Min Elevation (°)" style="max-width:150px;">
+        <input id="filterStartDate" type="datetime-local" style="max-width:220px;">
+        <input id="filterEndDate" type="datetime-local" style="max-width:220px;">
+        <button id="applyFilterBtn" class="muted-btn">Apply Filter</button>
+        <button id="resetFilterBtn" class="muted-btn">Reset</button>
+      </div>
+
       <div id="resultsContainer"></div>
     </section>
 
@@ -127,8 +192,18 @@
     </footer>
   </div>
 
+  <div id="loadingOverlay" class="loading hidden">
+    <div class="loading-box">🔄 Please wait — loading / computing...</div>
+  </div>
+
   <script src="https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js"></script>
   <script>
+    const searchBox=document.getElementById('searchBox');
+    const suggestions=document.getElementById('suggestions');
+    const searchBtn=document.getElementById('searchBtn');
+    const groupSelect=document.getElementById('groupSelect');
+    const addGroupBtn=document.getElementById('addGroupBtn');
+    const loadGroupAllBtn=document.getElementById('loadGroupAllBtn');
     const tleInputEl=document.getElementById('tleInput');
     const computeBtn=document.getElementById('computeBtn');
     const clearBtn=document.getElementById('clearBtn');
@@ -138,137 +213,352 @@
     const latEl=document.getElementById('lat');
     const lonEl=document.getElementById('lon');
     const heightEl=document.getElementById('height');
-    const hoursEl=document.getElementById('hours');
+    const daysEl=document.getElementById('days');
     const elThresholdEl=document.getElementById('elThreshold');
-    const timeModeEl=document.getElementById('timeMode');
+    const locBtn=document.getElementById('locBtn');
+    const activeSatsEl=document.getElementById('activeSats');
+    const loadingOverlay=document.getElementById('loadingOverlay');
+
+    const fixedStartUTC=new Date();
+    let allSatList=[];
+    let tleBank=[];
     let latestPassResults=[];
+    let currentSort={key:null,asc:true};
 
-    tleInputEl.value=`ISS (ZARYA)
-1 25544U 98067A   25344.51782528  .00001264  00000-0  29628-4 0  9991
-2 25544  51.6442 203.3076 0005631  39.9456 320.2334 15.50068472295969`;
-
-    function formatDate(dateObj){
-      if(timeModeEl.value==='utc'){
-        return new Date(dateObj).toISOString().replace('T',' ').replace('Z',' UTC');
-      }else return new Date(dateObj).toLocaleString();
+    function showLoading(on){ loadingOverlay.classList.toggle('hidden',!on); }
+    function normNum(v){ return parseFloat(String(v).replace(',','.')); }
+    function formatDate(d){
+      const o=new Date(d);
+      const iso=o.toISOString().split('.')[0].replace('T',' ');
+      return iso+' UTC';
+    }
+    function formatDuration(ms){ 
+      const totalMs = Math.max(0, ms);
+      const hours = String(Math.floor(totalMs / 3600000)).padStart(2, '0');
+      const minutes = String(Math.floor((totalMs % 3600000) / 60000)).padStart(2, '0');
+      const seconds = String(Math.floor((totalMs % 60000) / 1000)).padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
+    function dedupePush(entry){ if(!tleBank.some(x=>x.name===entry.name)) tleBank.push(entry); }
+    function rebuildTleTextarea(){
+      tleInputEl.value = tleBank.length ? tleBank.map(s=>`${s.name}\n${s.tle[0]}\n${s.tle[1]}`).join("\n\n") : '';
+    }
+    function renderActiveSatellites(){
+      if(!tleBank.length){activeSatsEl.textContent='None loaded';return;}
+      let html='';
+      tleBank.forEach(s=>{
+        html+=`<span class="badge">🛰️ ${s.name} <span class="remove" data-name="${s.name}">❌</span></span> `;
+      });
+      activeSatsEl.innerHTML=html;
+      activeSatsEl.querySelectorAll('.remove').forEach(btn=>{
+        btn.onclick=()=>{tleBank=tleBank.filter(x=>x.name!==btn.dataset.name);rebuildTleTextarea();renderActiveSatellites();};
+      });
     }
 
-    function parseTLEs(text){
-      const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-      const groups=[];
-      for(let i=0;i<lines.length;){
-        if(lines[i].startsWith('1 ')) groups.push(['',lines[i],lines[i+1]]),i+=2;
-        else groups.push([lines[i],lines[i+1],lines[i+2]]),i+=3;
+    async function loadSatList(){
+      try{
+        const res=await fetch("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=TLE");
+        const text=await res.text();
+        allSatList=text.split(/\r?\n/).filter(l=>l && !l.startsWith("1 ") && !l.startsWith("2 "));
+      }catch(e){console.error('sat list fetch error',e);}
+    }
+    loadSatList();
+
+    searchBox.addEventListener('input',()=>{
+      const q=searchBox.value.trim().toUpperCase();
+      if(!q){suggestions.innerHTML='';return;}
+      const starts=allSatList.filter(s=>s.toUpperCase().startsWith(q));
+      const includes=allSatList.filter(s=>s.toUpperCase().includes(q) && !s.toUpperCase().startsWith(q));
+      const matches=[...starts,...includes].slice(0,12);
+      suggestions.innerHTML=matches.map(m=>`<div>${m}</div>`).join('');
+    });
+    suggestions.addEventListener('click',e=>{
+      if(e.target.tagName==='DIV'){
+        searchBox.value=e.target.textContent.trim().replace(/\s+/g,' ');
+        suggestions.innerHTML='';
       }
-      return groups;
+    });
+
+    searchBtn.onclick=async()=>{
+      const name=searchBox.value.trim().replace(/\s+/g,' ');
+      if(!name){alert("Enter a satellite name");return;}
+      showLoading(true);
+      try{
+        const url=`https://celestrak.org/NORAD/elements/gp.php?NAME=${encodeURIComponent(name)}&FORMAT=TLE&time=${Date.now()}`;
+        const res=await fetch(url);
+        const text=(await res.text()).trim();
+        const lines=text.split(/\r?\n/);
+        if(lines.length<2){alert("TLE not found");return;}
+        if(lines.length>=3 && !lines[0].startsWith('1 ') && !lines[0].startsWith('2 ')){
+          dedupePush({name: lines[0].trim().replace(/\s+/g,' '), tle:[lines[1],lines[2]]});
+        }else{
+          dedupePush({name, tle:[lines[0],lines[1]]});
+        }
+        rebuildTleTextarea(); renderActiveSatellites();
+        statusEl.textContent=`Added "${name}"`;
+      }catch(e){console.error(e);alert('Fetch failed');}
+      finally{showLoading(false);}
+    };
+
+    async function loadGroup(group, limit){
+      showLoading(true);
+      try{
+        const url=`https://celestrak.org/NORAD/elements/gp.php?GROUP=${encodeURIComponent(group)}&FORMAT=TLE&time=${Date.now()}`;
+        const res=await fetch(url);
+        const text=(await res.text()).trim();
+        const lines=text.split(/\r?\n/);
+        let added=0,total=0;
+        for(let i=0;i<lines.length;i++){
+          const title=lines[i]?.trim(), l1=lines[i+1]?.trim(), l2=lines[i+2]?.trim();
+          if(!title||!l1||!l2) break;
+          if(l1.startsWith('1 ') && l2.startsWith('2 ')){
+            total++;
+            const entry={name:title.replace(/\s+/g,' '), tle:[l1,l2], group};
+            if(!tleBank.some(x=>x.name===entry.name)){ tleBank.push(entry); added++; }
+            i+=2;
+            if(limit && added>=limit) break;
+          }
+        }
+        rebuildTleTextarea(); renderActiveSatellites();
+        statusEl.textContent=`Loaded ${added}${limit?' (first 20)':''} of ${total} from "${group}".`;
+      }catch(e){console.error(e);alert('Group load failed');}
+      finally{showLoading(false);}
     }
+    addGroupBtn.onclick=()=>{const g=groupSelect.value;if(!g){alert('Choose a group');return;}loadGroup(g,20);};
+    loadGroupAllBtn.onclick=()=>{const g=groupSelect.value;if(!g){alert('Choose a group');return;}loadGroup(g,0);};
 
-    // ✅ High-precision look angle computation
-    function computeLookAngles(satrec, jsDate, observerGeodetic){
-      const j = satellite.jday(
-        jsDate.getUTCFullYear(),
-        jsDate.getUTCMonth()+1,
-        jsDate.getUTCDate(),
-        jsDate.getUTCHours(),
-        jsDate.getUTCMinutes(),
-        jsDate.getUTCSeconds() + jsDate.getUTCMilliseconds() * 1e-3
-      );
-      const gmst = satellite.gstime(j); // ✅ Works fine in v4.1.4
-
-      const eci = satellite.propagate(satrec, jsDate);
+    function computeLookAngles(satrec,date,obs){
+      const gmst=satellite.gstime(date);
+      const eci=satellite.propagate(satrec,date);
       if(!eci || !eci.position) return null;
-
-      const positionEcf = satellite.eciToEcf(eci.position, gmst);
-      let lon = observerGeodetic.lon;
-      if(lon > 180) lon -= 360;
-      if(lon < -180) lon += 360;
-
-      const obs = {
-        longitude: satellite.degreesToRadians(lon),
-        latitude: satellite.degreesToRadians(observerGeodetic.lat),
-        height: observerGeodetic.height / 1000.0
-      };
-      const look = satellite.ecfToLookAngles(obs, positionEcf);
-      return {
-        az: satellite.radiansToDegrees(look.azimuth),
-        el: satellite.radiansToDegrees(look.elevation),
-        rangeKm: look.rangeSat
-      };
+      const ecf=satellite.eciToEcf(eci.position,gmst);
+      const look=satellite.ecfToLookAngles({
+        longitude:satellite.degreesToRadians(obs.lon),
+        latitude:satellite.degreesToRadians(obs.lat),
+        height:obs.height/1000
+      }, ecf);
+      return { el: satellite.radiansToDegrees(look.elevation) };
     }
 
-    async function findPassesForTle(tleTuple,observer,startDate,hours,elevThreshold){
-      const endDate=new Date(startDate.getTime()+hours*3600*1000);
-      const satrec=satellite.twoline2satrec(tleTuple[1],tleTuple[2]);
-      const observerGeodetic={lon:observer.lon,lat:observer.lat,height:observer.height};
-      const stepSec=1; // ✅ more precise
-      const results=[];
-      let inPass=false,passStart=null,maxEl=-Infinity,maxTime=null;
-      for(let t=new Date(startDate.getTime());t<=endDate;t=new Date(t.getTime()+stepSec*1000)){
-        const look=computeLookAngles(satrec,t,observerGeodetic);
-        if(!look)continue;
-        const el=look.el;
-        if(el>=elevThreshold){
-          if(!inPass){inPass=true;passStart=new Date(t);maxEl=el;maxTime=new Date(t);}
-          else if(el>maxEl){maxEl=el;maxTime=new Date(t);}
+    async function findPassesForEntry(entry,obs,start,days,elv){
+      const end=new Date(start.getTime()+days*24*3600*1000);
+      const satrec=satellite.twoline2satrec(entry.tle[0],entry.tle[1]);
+      const results=[]; const step=5000;
+      let inPass=false, ps=null, maxEl=-Infinity, mt=null;
+      for(let t=new Date(start); t<=end; t=new Date(t.getTime()+step)){
+        const lk=computeLookAngles(satrec,t,obs);
+        if(!lk) continue;
+        const el=lk.el;
+        if(el>=elv){
+          if(!inPass){inPass=true; ps=new Date(t); maxEl=el; mt=new Date(t);}
+          else if(el>maxEl){maxEl=el; mt=new Date(t);}
         }else if(inPass){
-          const passEnd=new Date(t-stepSec*1000);
-          results.push({sat:tleTuple[0]||'SAT',start:passStart,end:passEnd,maxEl,maxTime});
+          results.push({sat:entry.name,start:ps,end:new Date(t-step),maxEl,maxTime:mt,duration:formatDuration(new Date(t-step)-ps)});
           inPass=false;
         }
       }
-      if(inPass)results.push({sat:tleTuple[0]||'SAT',start:passStart,end:endDate,maxEl,maxTime});
+      if(inPass) results.push({sat:entry.name,start:ps,end:end,maxEl,maxTime:mt,duration:formatDuration(end-ps)});
       return results;
     }
 
-    async function findPasses(tleTuples,observer,hours,elevThreshold){
-      statusEl.textContent='Computing passes... (start = current UTC)';
-      const start=new Date(Date.now());
+    async function computeAll(obs,days,elv){
+      statusEl.textContent='Computing passes...';
+      const start=fixedStartUTC;
       const all=[];
-      for(const tle of tleTuples){
-        try{
-          const passes=await findPassesForTle(tle,observer,start,hours,elevThreshold);
-          all.push(...passes);
-        }catch(e){console.error('Error computing passes',e);}
+      for(const entry of tleBank){
+        try{ const p=await findPassesForEntry(entry,obs,start,days,elv); all.push(...p); }
+        catch(e){console.error('compute error',e);}
       }
-      all.sort((a,b)=>new Date(a.start)-new Date(b.start));
+      all.sort((a,b)=>a.start-b.start);
       statusEl.textContent=`Done — ${all.length} pass(es) found.`;
       return all;
     }
 
     function renderResults(passes){
       latestPassResults=passes;
-      if(passes.length===0){resultsContainer.innerHTML='<div class="small">No passes found.</div>';return;}
-      let html='<table><thead><tr><th>Satellite</th><th>Start</th><th>End</th><th>Max Elev (°)</th><th>Max Elev Time</th></tr></thead><tbody>';
-      for(const p of passes){
-        html+=`<tr><td>${p.sat}</td><td>${formatDate(p.start)}</td><td>${formatDate(p.end)}</td><td>${p.maxEl.toFixed(2)}</td><td>${formatDate(p.maxTime)}</td></tr>`;
+      if(!passes.length){resultsContainer.innerHTML='<div class="small">No passes found.</div>';return;}
+      let h='<table id="resultsTable"><thead><tr><th data-key="sat">Satellite</th><th data-key="start">Start</th><th data-key="end">End</th><th data-key="maxEl">Max Elev (°)</th><th data-key="maxTime">Max Time</th><th data-key="durationMin">Duration (min)</th></tr></thead><tbody>';
+      for(const x of passes){
+        if(!x.start||!x.end||!x.maxTime) continue;
+        h+=`<tr><td>${x.sat}</td><td>${formatDate(x.start)}</td><td>${formatDate(x.end)}</td><td>${x.maxEl.toFixed(2)}</td><td>${formatDate(x.maxTime)}</td><td>${x.duration}</td></tr>`;
       }
-      html+='</tbody></table>';
-      resultsContainer.innerHTML=html;
+      h+='</tbody></table>';
+      resultsContainer.innerHTML=h;
+      document.querySelectorAll('#resultsTable th').forEach(th=>{
+        th.onclick=()=>{
+          const key=th.dataset.key;
+          currentSort.asc=(currentSort.key===key)?!currentSort.asc:true;
+          currentSort.key=key;
+          const sorted=[...latestPassResults].sort((a,b)=>{
+            let av=a[key],bv=b[key];
+            if(typeof av==='string')av=av.toUpperCase();
+            if(typeof bv==='string')bv=bv.toUpperCase();
+            if(!isNaN(av)&&!isNaN(bv)){av=parseFloat(av);bv=parseFloat(bv);}
+            if(av<bv)return currentSort.asc?-1:1;
+            if(av>bv)return currentSort.asc?1:-1;
+            return 0;
+          });
+          renderResults(sorted);
+        };
+      });
     }
 
     computeBtn.onclick=async()=>{
-      const observer={lat:parseFloat(latEl.value),lon:parseFloat(lonEl.value),height:parseFloat(heightEl.value)};
-      const tleText=tleInputEl.value.trim();if(!tleText){alert('Enter TLE');return;}
-      const tleTuples=parseTLEs(tleText);
-      const passes=await findPasses(tleTuples,observer,parseFloat(hoursEl.value),parseFloat(elThresholdEl.value));
-      renderResults(passes);
+      if(!tleBank.length){alert('No satellites/groups loaded');return;}
+      const elv=normNum(elThresholdEl.value); if(elv>90){alert('Elevation threshold cannot exceed 90°');return;}
+      const obs={lat:normNum(latEl.value),lon:normNum(lonEl.value),height:normNum(heightEl.value)};
+      const days=normNum(daysEl.value);
+      showLoading(true);
+      await new Promise(r=>setTimeout(r,0));
+      try{const passes=await computeAll(obs,days,elv);renderResults(passes);}
+      finally{showLoading(false);}
     };
 
     clearBtn.onclick=()=>{
-      latestPassResults=[];
-      resultsContainer.innerHTML='';
-      statusEl.textContent='Results cleared.';
+      showLoading(true);
+      try{
+        tleBank=[]; latestPassResults=[];
+        rebuildTleTextarea(); renderActiveSatellites();
+        resultsContainer.innerHTML='';
+        const oc=document.getElementById('overlapContainer');
+        if(oc){ oc.innerHTML=''; }
+        statusEl.textContent='Results cleared.';
+      }finally{setTimeout(()=>showLoading(false),150);}
     };
 
     downloadCsvBtn.onclick=()=>{
-      if(latestPassResults.length===0){alert('No results to export.');return;}
-      const header='Satellite,Start,End,Max Elev (deg),Max Elev Time\n';
-      const csv=header+latestPassResults.map(p=>`${p.sat},${p.start.toISOString()},${p.end.toISOString()},${p.maxEl.toFixed(2)},${p.maxTime.toISOString()}`).join('\n');
-      const blob=new Blob([csv],{type:'text/csv'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;a.download='passes.csv';a.click();URL.revokeObjectURL(url);
+      if(!latestPassResults.length){alert('No results to export.');return;}
+      showLoading(true);
+      try{
+        const header='Satellite,Start,End,Max Elev,Max Time,Duration(min)\n';
+        const body=latestPassResults.map(p=>`${p.sat},${formatDate(p.start)},${formatDate(p.end)},${p.maxEl.toFixed(2)},${formatDate(p.maxTime)},${p.duration}`).join('\n');
+        const blob=new Blob([header+body],{type:'text/csv'});
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='passes.csv';document.body.appendChild(a);a.click();a.remove();
+      }finally{setTimeout(()=>showLoading(false),200);}
     };
+
+    locBtn.onclick=()=>{
+      if(!navigator.geolocation){alert('Geolocation not supported');return;}
+      showLoading(true);
+      navigator.geolocation.getCurrentPosition(pos=>{
+        latEl.value=pos.coords.latitude.toFixed(4);
+        lonEl.value=pos.coords.longitude.toFixed(4);
+        heightEl.value=(pos.coords.altitude||0).toFixed(0);
+        showLoading(false);
+      },e=>{alert('Could not get location: '+e.message);showLoading(false);});
+    };
+
+    document.getElementById('applyFilterBtn').onclick=()=>{
+      const name=document.getElementById('filterName').value.trim().toUpperCase();
+      const minEl=parseFloat(document.getElementById('filterMinEl').value)||0;
+      const startStr=document.getElementById('filterStartDate').value;
+      const endStr=document.getElementById('filterEndDate').value;
+      const startFilter=startStr?new Date(startStr):null;
+      const endFilter=endStr?new Date(endStr):null;
+      const filtered=latestPassResults.filter(p=>{
+        const sTime=new Date(p.start);
+        return (!name||p.sat.toUpperCase().includes(name))&&p.maxEl>=minEl&&(!startFilter||sTime>=startFilter)&&(!endFilter||sTime<=endFilter);
+      });
+      renderResults(filtered);
+      statusEl.textContent=`Filtered ${filtered.length} pass(es).`;
+    };
+
+    document.getElementById('resetFilterBtn').onclick=()=>{
+      document.getElementById('filterName').value='';
+      document.getElementById('filterMinEl').value='';
+      document.getElementById('filterStartDate').value='';
+      document.getElementById('filterEndDate').value='';
+      renderResults(latestPassResults);
+      statusEl.textContent=`Showing all ${latestPassResults.length} pass(es).`;
+    };
+  
+    // --- UTC Info Display ---
+    function updateUTCInfo(){
+      const now = new Date();
+      const startOfYear = new Date(Date.UTC(now.getUTCFullYear(),0,1));
+      const dayOfYear = Math.floor((now - startOfYear)/86400000) + 1;
+      const iso = now.toISOString().split('.')[0].replace('T',' ');
+      document.getElementById('utcInfo').textContent = `📅 ${iso} UTC — Day ${dayOfYear} of the year`;
+    }
+    updateUTCInfo();
+    setInterval(updateUTCInfo, 1000);
+
+  
+    // --- Default filter date initialization ---
+    function setDefaultFilterDates(){
+      const now = new Date();
+      const daysAhead = parseInt(document.getElementById('days').value || '3');
+      const end = new Date(now.getTime() + daysAhead * 24 * 3600 * 1000);
+      const toLocalInput = d => d.toISOString().slice(0,16);
+      document.getElementById('filterStartDate').value = toLocalInput(now);
+      document.getElementById('filterEndDate').value = toLocalInput(end);
+    }
+    document.getElementById('days').addEventListener('input', setDefaultFilterDates);
+    window.addEventListener('load', setDefaultFilterDates);
+
+  
+    // --- Overlap detection and rendering ---
+    function detectOverlaps(passes){
+      const overlaps=[];
+      for(let i=0;i<passes.length;i++){
+        for(let j=i+1;j<passes.length;j++){
+          const a=passes[i],b=passes[j];
+          const startA=new Date(a.start), endA=new Date(a.end);
+          const startB=new Date(b.start), endB=new Date(b.end);
+          if(startA<=endB && endA>=startB){ // overlap
+            const overlapStart = new Date(Math.max(startA.getTime(), startB.getTime()));
+            const overlapEnd = new Date(Math.min(endA.getTime(), endB.getTime()));
+            const durationMs = Math.max(0, overlapEnd - overlapStart);
+            const durationStr = new Date(durationMs).toISOString().substr(11,8);
+            overlaps.push({
+              sat1:a.sat, sat2:b.sat,
+              overlapStart:overlapStart,
+              overlapEnd:overlapEnd,
+              duration:durationStr
+            });
+          }
+        }
+      }
+      return overlaps;
+    }
+
+    function renderOverlaps(passes){
+      const overlaps = detectOverlaps(passes);
+      if(!overlaps.length){
+        document.getElementById('overlapContainer').innerHTML = '<div class="small">No overlapping passes detected.</div>';
+        return;
+      }
+      let h='<h3>Overlapping Passes</h3><table><thead><tr><th>Sat 1</th><th>Sat 2</th><th>Overlap Start</th><th>Overlap End</th><th>Duration</th></tr></thead><tbody>';
+      overlaps.forEach(o=>{
+        h+=`<tr><td>${o.sat1}</td><td>${o.sat2}</td><td>${formatDate(o.overlapStart)}</td><td>${formatDate(o.overlapEnd)}</td><td>${o.duration}</td></tr>`;
+      });
+      h+='</tbody></table>';
+      document.getElementById('overlapContainer').innerHTML=h;
+
+      // Highlight overlapping rows in main table
+      const table = document.querySelector('#resultsTable tbody');
+      if(table){
+        Array.from(table.rows).forEach(r=>{
+          const satName=r.cells[0].textContent;
+          if(overlaps.some(o=>o.sat1===satName||o.sat2===satName)){
+            r.classList.add('overlap');
+          }
+        });
+      }
+    }
+
+    // Extend renderResults to include overlap rendering
+    const oldRenderResults = renderResults;
+    renderResults = function(passes){
+      oldRenderResults(passes);
+      if(!document.getElementById('overlapContainer')){
+        const div=document.createElement('div');
+        div.id='overlapContainer';
+        document.getElementById('resultsCard').appendChild(div);
+      }
+      renderOverlaps(passes);
+    }
+
   </script>
 </body>
 </html>
