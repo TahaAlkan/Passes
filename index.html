@@ -75,6 +75,29 @@ Bu sürümde:
     .loading{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
     .loading-box{background:var(--card);padding:20px 30px;border-radius:12px;font-size:14px;color:var(--muted);text-align:center;box-shadow:0 0 20px rgba(0,0,0,0.3)}
     .hidden{display:none}
+
+/* === Mobile fixes === */
+.table-wrap{overflow-x:auto; -webkit-overflow-scrolling: touch;} /* horizontal scroll on small screens */
+
+@media (max-width:720px){
+  header{flex-direction:column; align-items:flex-start;}
+  .top-actions{width:100%; flex-direction:column;}
+  .top-actions button{width:100%}
+
+  /* Override inline min/max widths that cause overflow on mobile */
+  [style*="min-width:260px"],
+  [style*="min-width:220px"]{min-width:0 !important; width:100% !important;}
+
+  [style*="max-width:220px"],
+  [style*="max-width:150px"]{max-width:100% !important; width:100% !important;}
+
+  input, select, textarea{width:100%; font-size:14px}
+
+  /* Tables: reduce font size and keep cells in one line (scroll horizontally) */
+  table{font-size:12px}
+  th,td{padding:8px 10px; white-space:nowrap}
+}
+
     
     #overlapContainer { margin-top: 20px; }
 
@@ -196,7 +219,95 @@ Bu sürümde:
     <div class="loading-box">🔄 Please wait — loading / computing...</div>
   </div>
 
-  <script src="https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js"></script>
+  <script src="https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js">
+    // --- UTC Info Display ---
+    function updateUTCInfo(){
+      const now = new Date();
+      const startOfYear = new Date(Date.UTC(now.getUTCFullYear(),0,1));
+      const dayOfYear = Math.floor((now - startOfYear)/86400000) + 1;
+      const iso = now.toISOString().split('.')[0].replace('T',' ');
+      document.getElementById('utcInfo').textContent = `📅 ${iso} UTC — Day ${dayOfYear} of the year`;
+    }
+    updateUTCInfo();
+    setInterval(updateUTCInfo, 1000);
+
+  
+    // --- Default filter date initialization ---
+    function setDefaultFilterDates(){
+      const now = new Date();
+      const daysAhead = parseInt(document.getElementById('days').value || '3');
+      const end = new Date(now.getTime() + daysAhead * 24 * 3600 * 1000);
+      const toLocalInput = d => d.toISOString().slice(0,16);
+      document.getElementById('filterStartDate').value = toLocalInput(now);
+      document.getElementById('filterEndDate').value = toLocalInput(end);
+    }
+    document.getElementById('days').addEventListener('input', setDefaultFilterDates);
+    window.addEventListener('load', setDefaultFilterDates);
+
+  
+    // --- Overlap detection and rendering ---
+    function detectOverlaps(passes){
+      const overlaps=[];
+      for(let i=0;i<passes.length;i++){
+        for(let j=i+1;j<passes.length;j++){
+          const a=passes[i],b=passes[j];
+          const startA=new Date(a.start), endA=new Date(a.end);
+          const startB=new Date(b.start), endB=new Date(b.end);
+          if(startA<=endB && endA>=startB){ // overlap
+            const overlapStart=new Date(Math.max(startA,endB)-endB>0?endB:startB);
+            const overlapEnd=new Date(Math.min(endA,endB));
+            const durationMs=Math.max(0, overlapEnd - overlapStart);
+            const durationStr = new Date(durationMs).toISOString().substr(11,8);
+            overlaps.push({
+              sat1:a.sat, sat2:b.sat,
+              overlapStart:overlapStart,
+              overlapEnd:overlapEnd,
+              duration:durationStr
+            });
+          }
+        }
+      }
+      return overlaps;
+    }
+
+    function renderOverlaps(passes){
+      const overlaps = detectOverlaps(passes);
+      if(!overlaps.length){
+        document.getElementById('overlapContainer').innerHTML = '<div class="small">No overlapping passes detected.</div>';
+        return;
+      }
+      let h='<h3>Overlapping Passes</h3><table><thead><tr><th>Sat 1</th><th>Sat 2</th><th>Overlap Start</th><th>Overlap End</th><th>Duration</th></tr></thead><tbody>';
+      overlaps.forEach(o=>{
+        h+=`<tr><td>${o.sat1}</td><td>${o.sat2}</td><td>${formatDate(o.overlapStart)}</td><td>${formatDate(o.overlapEnd)}</td><td>${o.duration}</td></tr>`;
+      });
+      h+='</tbody></table>';
+      document.getElementById('overlapContainer').innerHTML=h;
+
+      // Highlight overlapping rows in main table
+      const table = document.querySelector('#resultsTable tbody');
+      if(table){
+        Array.from(table.rows).forEach(r=>{
+          const satName=r.cells[0].textContent;
+          if(overlaps.some(o=>o.sat1===satName||o.sat2===satName)){
+            r.classList.add('overlap');
+          }
+        });
+      }
+    }
+
+    // Extend renderResults to include overlap rendering
+    const oldRenderResults = renderResults;
+    renderResults = function(passes){
+      oldRenderResults(passes);
+      if(!document.getElementById('overlapContainer')){
+        const div=document.createElement('div');
+        div.id='overlapContainer';
+        document.getElementById('resultsCard').appendChild(div);
+      }
+      renderOverlaps(passes);
+    }
+
+  </script>
   <script>
     const searchBox=document.getElementById('searchBox');
     const suggestions=document.getElementById('suggestions');
@@ -383,7 +494,7 @@ Bu sürümde:
         h+=`<tr><td>${x.sat}</td><td>${formatDate(x.start)}</td><td>${formatDate(x.end)}</td><td>${x.maxEl.toFixed(2)}</td><td>${formatDate(x.maxTime)}</td><td>${x.duration}</td></tr>`;
       }
       h+='</tbody></table>';
-      resultsContainer.innerHTML=h;
+      resultsContainer.innerHTML = '<div class="table-wrap">'+h+'</div>';
       document.querySelectorAll('#resultsTable th').forEach(th=>{
         th.onclick=()=>{
           const key=th.dataset.key;
@@ -506,9 +617,9 @@ Bu sürümde:
           const startA=new Date(a.start), endA=new Date(a.end);
           const startB=new Date(b.start), endB=new Date(b.end);
           if(startA<=endB && endA>=startB){ // overlap
-            const overlapStart = new Date(Math.max(startA.getTime(), startB.getTime()));
-            const overlapEnd = new Date(Math.min(endA.getTime(), endB.getTime()));
-            const durationMs = Math.max(0, overlapEnd - overlapStart);
+            const overlapStart=new Date(Math.max(startA,endB)-endB>0?endB:startB);
+            const overlapEnd=new Date(Math.min(endA,endB));
+            const durationMs=Math.max(0, overlapEnd - overlapStart);
             const durationStr = new Date(durationMs).toISOString().substr(11,8);
             overlaps.push({
               sat1:a.sat, sat2:b.sat,
