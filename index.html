@@ -14,6 +14,7 @@ Bu sürümde:
   <link rel="icon" href="data:,">
   <meta charset="utf-8" />
   <title>Passes — MultiSat TLE Finder v4.3.0</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -101,7 +102,588 @@ Bu sürümde:
     
     #overlapContainer { margin-top: 20px; }
 
-  </style>
+  
+/* === Dark/Light theme === */
+
+:root.light {
+  --bg: #dfe3e8;
+  --card: #f2f4f6;
+  --muted: #374151;
+  --accent: #4b5563;
+  --glass: rgba(0,0,0,0.04);
+  color-scheme: light;
+}
+
+  --bg: #f6f8fa;
+  --card: #ffffff;
+  --muted: #4b5563;
+  --accent: #2563eb;
+  --glass: rgba(0,0,0,0.03);
+  color-scheme: light;
+}
+:root.dark {
+  --bg: #1b2431;
+  --card: #232e3f;
+  --muted: #aeb7c4;
+  --accent: #5c9aff;
+  --glass: rgba(255,255,255,0.05);
+  color-scheme: dark;
+}
+.theme-toggle {
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.theme-toggle:hover {background: var(--accent); color: white;}
+.fade-in {animation: fadeIn 0.6s ease-in;}
+@keyframes fadeIn {from{opacity:0;} to{opacity:1;}}
+
+
+button:hover { opacity: 0.9; }
+.muted-btn:hover { background: rgba(0,0,0,0.06); }
+
+
+/* === Soft Dark Enhancements === */
+.card { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+button:hover { filter: brightness(1.1); }
+
+
+/* === Settings Panel === */
+.settings-btn {
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.settings-btn:hover { background: var(--accent); color: white; }
+.settings-panel {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  padding: 16px;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+  width: 220px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+.settings-panel label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.settings-panel select {
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 6px;
+  color: inherit;
+}
+
+
+/* === Glassmorphism Settings Panel === */
+.settings-btn {
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+.settings-btn:hover {
+  transform: rotate(20deg);
+  background: var(--accent);
+  color: white;
+}
+.settings-panel {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  padding: 18px;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+  width: 240px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: fadeSlideIn 0.4s ease forwards;
+}
+.settings-panel label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.settings-panel select {
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 6px;
+  color: inherit;
+  transition: background 0.3s ease;
+}
+.settings-panel select:hover {
+  background: rgba(255,255,255,0.12);
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* === Glass Dashboard Enhancements === */
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+/* Filters Section */
+#resultsCard .row {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Results Table */
+#resultsContainer table {
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+#resultsContainer tr:hover {
+  background: rgba(255,255,255,0.07);
+  transition: background 0.3s ease;
+}
+
+
+/* === Visual Refinement: Glass + Dashboard Enhancements === */
+
+/* General Glass Effect Refinement */
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* Table Styling */
+#resultsContainer {
+  overflow-x: auto;
+  border-radius: 12px;
+}
+#resultsContainer table {
+  border-collapse: collapse;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+#resultsContainer th {
+  position: sticky;
+  top: 0;
+  background: rgba(15, 23, 36, 0.9);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 2;
+  color: var(--muted);
+}
+#resultsContainer tr:hover {
+  background: rgba(255,255,255,0.07);
+  transition: background 0.3s ease;
+}
+#resultsContainer td, #resultsContainer th {
+  padding: 10px 12px;
+}
+
+/* Highlight Max Elevation */
+#resultsContainer td:nth-child(4) {
+  background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0) 100%);
+  border-left: 2px solid rgba(59,130,246,0.3);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+/* Light/Dark theme blending */
+@media (prefers-color-scheme: light) {
+  body {
+    background: linear-gradient(180deg, #f0f0f0 0%, #e0e0e0 100%);
+    color: #222;
+  }
+  .card {
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  }
+  th, td {
+    color: #222;
+  }
+}
+
+/* Filter Section Improvements */
+#resultsCard .row {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  margin-bottom: 8px;
+}
+#resultsCard input, #resultsCard button {
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+#resultsCard button:hover {
+  background: rgba(59,130,246,0.2);
+  box-shadow: 0 0 6px rgba(59,130,246,0.4);
+}
+
+/* Mobile improvements */
+@media (max-width: 720px) {
+  .card {
+    padding: 12px;
+  }
+  .row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  button {
+    width: 100%;
+  }
+}
+
+
+/* === Compact / Expand Table Rows (Mobile) === */
+@media (max-width: 720px) {
+  #resultsContainer table thead {
+    display: none;
+  }
+  #resultsContainer table, 
+  #resultsContainer tbody, 
+  #resultsContainer tr, 
+  #resultsContainer td {
+    display: block;
+    width: 100%;
+  }
+  #resultsContainer tr {
+    background: rgba(255,255,255,0.05);
+    margin-bottom: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: background 0.3s ease;
+  }
+  #resultsContainer td {
+    padding: 10px 14px;
+    border: none;
+  }
+  #resultsContainer td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    display: block;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  #resultsContainer tr .details {
+    display: none;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin-top: 4px;
+  }
+  #resultsContainer tr.expanded .details {
+    display: block;
+    animation: fadeSlideDown 0.3s ease;
+  }
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+<script>
+document.addEventListener("click", function(e) {
+  if (e.target.closest("#resultsContainer tr")) {
+    const row = e.target.closest("#resultsContainer tr");
+    row.classList.toggle("expanded");
+  }
+});
+});
+</script>
+
+
+<style>
+/* === Map Modal Styles === */
+#mapModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+#mapContainer {
+  width: 95%;
+  height: 90%;
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+}
+#map {
+  width: 100%;
+  height: 100%;
+}
+.map-time-controls{
+  position:absolute;
+  top:18px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  background:rgba(6,10,18,0.42);
+  border:1px solid rgba(148,163,184,0.35);
+  border-radius:999px;
+  padding:8px 14px;
+  backdrop-filter:blur(8px);
+  box-shadow:0 12px 26px rgba(2,6,23,0.35);
+  z-index:100003!important;
+  color:#e2e8f0;
+  font-size:12px;
+}
+.map-time-label{
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  font-size:11px;
+  color:#cbd5f5;
+}
+.map-time-row{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  min-width:200px;
+  flex:1;
+}
+.map-time-controls input[type="datetime-local"]{
+  flex:1;
+  background:rgba(15,23,42,0.35);
+  border:1px solid rgba(148,163,184,0.35);
+  border-radius:10px;
+  padding:6px 8px;
+  color:#f8fafc;
+  font-size:12px;
+}
+.map-time-controls button{
+  background:rgba(59,130,246,0.18);
+  color:#bfdbfe;
+  border:1px solid rgba(59,130,246,0.35);
+  border-radius:10px;
+  padding:6px 12px;
+  font-size:12px;
+  cursor:pointer;
+}
+.map-time-controls button:hover{
+  background:rgba(59,130,246,0.32);
+}
+.map-time-actions{
+  display:flex;
+  gap:6px;
+}
+#mapTimeStatus{
+  font-size:11px;
+  color:#e0e7ff;
+  white-space:nowrap;
+}
+.map-countdown{
+  background:rgba(11,18,32,0.9);
+  color:#f8fafc;
+  padding:12px 16px;
+  border-radius:14px;
+  font-size:12px;
+  line-height:1.45;
+  max-width:320px;
+  box-shadow:0 12px 30px rgba(2,6,23,0.55);
+  backdrop-filter:blur(8px);
+  pointer-events:none;
+}
+.map-countdown div+div{
+  margin-top:4px;
+}
+.satellite-marker{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  font-size:12px;
+  text-align:center;
+}
+.satellite-marker .satellite-emoji{
+  width:36px;
+  height:36px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.45);
+}
+.satellite-marker span{
+  font-size:11px;
+  font-weight:600;
+  color:#e2e8f0;
+  background:rgba(2,6,23,0.75);
+  padding:2px 8px;
+  border-radius:999px;
+  white-space:nowrap;
+  letter-spacing:0.02em;
+}
+#closeMapBtn {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: rgba(0,0,0,0.5);
+  border: none;
+  color: white;
+  font-size: 20px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.25s;
+}
+#closeMapBtn:hover {
+  background: rgba(255,255,255,0.2);
+}
+#mapBtn {
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--accent);color:white;font-size:18px;
+  transition:transform .25s ease, box-shadow .25s ease;
+}
+#mapBtn:hover{
+  transform:scale(1.08);
+  box-shadow:0 0 10px var(--accent);
+}
+</style>
+
+</style>
+
+<style>
+#settingsMenu {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+#settingsMenu.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+<style>
+/* === Map Modal Styles === */
+#mapModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+#mapContainer {
+  width: 95%;
+  height: 90%;
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+}
+#map {
+  width: 100%;
+  height: 100%;
+}
+#closeMapBtn {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: rgba(0,0,0,0.5);
+  border: none;
+  color: white;
+  font-size: 20px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.25s;
+}
+#closeMapBtn:hover {
+  background: rgba(255,255,255,0.2);
+}
+#mapBtn {
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--accent);color:white;font-size:18px;
+  transition:transform .25s ease, box-shadow .25s ease;
+}
+#mapBtn:hover{
+  transform:scale(1.08);
+  box-shadow:0 0 10px var(--accent);
+}
+</style>
+
+</style>
+
+
+<!-- Leaflet Map Library -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 </head>
 <body>
   <div id="utcInfo" style="text-align:center;font-size:14px;color:var(--muted);margin-bottom:12px;">
@@ -114,12 +696,60 @@ Bu sürümde:
         <h1>Passes — MultiSat TLE Finder</h1>
         <p class="lead">Compute satellite passes (SGP4, Fixed UTC start) — Multi-satellite & Groups.</p>
       </div>
-      <div class="top-actions">
+      <div class="top-actions"><button id="themeToggle" class="theme-toggle">🌙</button>
+<button id="settingsBtn" class="settings-btn">⚙️</button>
+        <button id="mapBtn" class="muted-btn">🌍 </button>
         <button id="computeBtn">Compute Passes</button>
         <button id="downloadCsvBtn" class="muted-btn">Export CSV</button>
+        
+<div class="dropdown" style="position:relative;">
+  <div id="settingsMenu" style="
+      position:absolute; right:0; top:110%; z-index:999;
+      background:var(--card);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:10px;
+      padding:10px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.4);
+      z-index:100;
+      min-width:180px;">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+      <input type="checkbox" id="compactModeToggle" style="transform:scale(1.2);">
+      Compact Table Mode
+    </label>
+<hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0;">
+<label style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Theme Mode</label>
+<select id="themeSelect" style="width:100%;padding:6px;border-radius:6px;background:var(--glass);color:inherit;border:1px solid rgba(255,255,255,0.1);">
+  <option value="dark">🌑 Dark</option>
+  <option value="neutral">⚙️ Neutral</option>
+  <option value="light">⚪ Light</option>
+</select>
+
+  </div>
+</div>
+
         <button id="clearBtn" class="muted-btn">Clear Results</button>
       </div>
     </header>
+
+<div id="settingsPanel" class="settings-panel">
+  <label>Theme</label>
+  <select id="themeSelect">
+    <option value="dark">Dark</option>
+    <option value="light">Light</option>
+  </select>
+  <label>Animation Speed</label>
+  <select id="animSelect">
+    <option value="slow">Slow</option>
+    <option value="normal" selected>Normal</option>
+    <option value="fast">Fast</option>
+  </select>
+  <label>Table View</label>
+  <select id="tableSelect">
+    <option value="compact">Compact</option>
+    <option value="wide" selected>Wide</option>
+  </select>
+</div>
+
 
     <!-- Search + Group + Loaded TLEs -->
     <section class="card">
@@ -179,6 +809,9 @@ Bu sürümde:
           </div>
           <div class="small">Default: Ankara • Use dot or comma</div>
           <button id="locBtn" class="muted-btn" style="margin-top:6px">Use Current Location</button>
+          <div class="small" id="observerCountdownList" style="margin-top:8px;color:var(--accent);display:flex;flex-direction:column;gap:4px;">
+            <div>Next contact: —</div>
+          </div>
         </div>
 
         <div style="min-width:220px;flex:1">
@@ -198,7 +831,8 @@ Bu sürümde:
       <div class="status" id="status">Ready. (SGP4, fixed start time)</div>
 
       <!-- Filters -->
-      <div class="row" style="margin:10px 0;flex-wrap:wrap;">
+      <button id="toggleFilterBtn" class="muted-btn" style="margin-bottom:10px;">🔍 Show Filters</button>
+<div id="filterPanel" class="row" style="margin:10px 0;flex-wrap:wrap;display:none;">
         <input id="filterName" type="text" placeholder="Filter by satellite name" style="flex:1;min-width:160px;">
         <input id="filterMinEl" type="number" placeholder="Min Elevation (°)" style="max-width:150px;">
         <input id="filterStartDate" type="datetime-local" style="max-width:220px;">
@@ -207,7 +841,14 @@ Bu sürümde:
         <button id="resetFilterBtn" class="muted-btn">Reset</button>
       </div>
 
-      <div id="resultsContainer"></div>
+      </div>
+
+<!-- Compact Toggle Button -->
+<div id="compactToggleContainer" style="text-align:right; margin-bottom:10px;">
+  <button id="toggleCompactBtn" class="muted-btn">🗂️ Toggle Compact Mode</button>
+</div>
+
+<div id="resultsContainer"></div>
     </section>
 
     <footer class="footer">
@@ -307,7 +948,93 @@ Bu sürümde:
       renderOverlaps(passes);
     }
 
-  </script>
+  
+
+// === Theme Toggle ===
+const themeToggle=document.getElementById('themeToggle');
+const root=document.documentElement;
+const savedTheme=localStorage.getItem('theme')||'dark';
+root.classList.add(savedTheme);
+themeToggle.textContent=savedTheme==='light'?'🌙':'☀️';
+themeToggle.onclick=()=>{
+  const isLight=root.classList.contains('light');
+  root.classList.toggle('light',!isLight);
+  root.classList.toggle('dark',isLight);
+  const newTheme=isLight?'dark':'light';
+  localStorage.setItem('theme',newTheme);
+  themeToggle.textContent=newTheme==='light'?'🌙':'☀️';
+};
+
+// === Filter Accordion ===
+const filterBtn=document.getElementById('toggleFilterBtn');
+const filterPanel=document.getElementById('filterPanel');
+filterBtn.onclick=()=>{
+  const open=filterPanel.style.display!=='none';
+  filterPanel.style.display=open?'none':'flex';
+  filterBtn.textContent=open?'🔍 Show Filters':'❌ Hide Filters';
+};
+
+// === Fade-in Results ===
+const origRenderResults = renderResults;
+renderResults = function(passes){
+  origRenderResults(passes);
+  const rc=document.getElementById('resultsContainer');
+  rc.classList.remove('fade-in');
+  void rc.offsetWidth;
+  rc.classList.add('fade-in');
+};
+
+
+
+// === Settings Panel ===
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+
+settingsBtn.onclick = () => {
+  const open = settingsPanel.style.display === 'flex';
+  settingsPanel.style.display = open ? 'none' : 'flex';
+};
+
+// Restore saved preferences
+const savedAnim = localStorage.getItem('animSpeed') || 'normal';
+const savedTable = localStorage.getItem('tableView') || 'wide';
+document.getElementById('animSelect').value = savedAnim;
+document.getElementById('tableSelect').value = savedTable;
+document.getElementById('themeSelect').value = savedTheme;
+
+// Apply animation speed
+document.documentElement.style.setProperty('--fade-speed',
+  savedAnim==='slow'?'1.2s':savedAnim==='fast'?'0.3s':'0.6s'
+);
+
+// Handle setting changes
+document.getElementById('animSelect').onchange = e => {
+  const v=e.target.value;
+  localStorage.setItem('animSpeed',v);
+  document.documentElement.style.setProperty('--fade-speed',
+    v==='slow'?'1.2s':v==='fast'?'0.3s':'0.6s'
+  );
+};
+
+document.getElementById('tableSelect').onchange = e => {
+  const v=e.target.value;
+  localStorage.setItem('tableView',v);
+  const table=document.getElementById('resultsTable');
+  if(table){
+    table.style.fontSize=v==='compact'?'12px':'13px';
+    table.style.lineHeight=v==='compact'?'1.2':'1.6';
+  }
+};
+
+document.getElementById('themeSelect').onchange = e => {
+  const v=e.target.value;
+  root.classList.toggle('light',v==='light');
+  root.classList.toggle('dark',v==='dark');
+  localStorage.setItem('theme',v);
+  themeToggle.textContent=v==='light'?'🌙':'☀️';
+};
+
+</script>
   <script>
     const searchBox=document.getElementById('searchBox');
     const suggestions=document.getElementById('suggestions');
@@ -329,12 +1056,21 @@ Bu sürümde:
     const locBtn=document.getElementById('locBtn');
     const activeSatsEl=document.getElementById('activeSats');
     const loadingOverlay=document.getElementById('loadingOverlay');
+    const observerCountdownListEl=document.getElementById('observerCountdownList');
 
     const fixedStartUTC=new Date();
     let allSatList=[];
     let tleBank=[];
     let latestPassResults=[];
     let currentSort={key:null,asc:true};
+    let observerCountdownTimer=null;
+    let observerCountdownItems=[];
+    [latEl, lonEl, heightEl].forEach(input=>{
+      if(!input) return;
+      const notify=()=>resetObserverCountdown('Next contact: observer changed — recompute.');
+      input.addEventListener('change',notify);
+      input.addEventListener('input',notify);
+    });
 
     function showLoading(on){ loadingOverlay.classList.toggle('hidden',!on); }
     function normNum(v){ return parseFloat(String(v).replace(',','.')); }
@@ -349,6 +1085,117 @@ Bu sürümde:
       const minutes = String(Math.floor((totalMs % 3600000) / 60000)).padStart(2, '0');
       const seconds = String(Math.floor((totalMs % 60000) / 1000)).padStart(2, '0');
       return `${hours}:${minutes}:${seconds}`;
+    }
+    function renderCountdownMessages(messages){
+      if(observerCountdownListEl){
+        if(!messages.length){
+          observerCountdownListEl.innerHTML='<div>Next contact: —</div>';
+        }else{
+          observerCountdownListEl.innerHTML = messages.map(msg=>`<div>${msg}</div>`).join('');
+        }
+      }
+      const cleanMessages = messages.length ? messages : ['Next contact: —'];
+      const mapMessages = cleanMessages.filter(msg => !/observer changed/i.test(msg));
+      const fallbackMapMessages = mapMessages.length ? mapMessages : ['Next contact: —'];
+      window.latestCountdownMessages = cleanMessages;
+      window.latestMapCountdownMessages = fallbackMapMessages;
+      if(window.renderMapCountdown){
+        window.renderMapCountdown(window.latestMapCountdownMessages);
+      }
+    }
+    function resetObserverCountdown(message='Next contact: —'){
+      observerCountdownItems=[];
+      if(observerCountdownTimer){ clearInterval(observerCountdownTimer); observerCountdownTimer=null; }
+      renderCountdownMessages([message]);
+    }
+    function scheduleObserverCountdown(){
+      if(!observerCountdownListEl) return;
+      observerCountdownItems=[];
+      if(observerCountdownTimer){ clearInterval(observerCountdownTimer); observerCountdownTimer=null; }
+      if(!latestPassResults.length){
+        renderCountdownMessages(['Next contact: compute passes to preview visibility.']);
+        return;
+      }
+      const now = Date.now();
+      const satMap=new Map();
+      latestPassResults.forEach(p=>{
+        const startTime=new Date(p.start).getTime();
+        const endTime=new Date(p.end).getTime();
+        if(!Number.isFinite(startTime)||!Number.isFinite(endTime)) return;
+        const satData=satMap.get(p.sat)||{active:null,upcoming:null};
+        if(now>=startTime && now<=endTime){
+          if(!satData.active || endTime<satData.active.end){ satData.active={start:startTime,end:endTime}; }
+        }else if(startTime>now){
+          if(!satData.upcoming || startTime<satData.upcoming.start){ satData.upcoming={start:startTime,end:endTime}; }
+        }
+        satMap.set(p.sat,satData);
+      });
+      tleBank.forEach(s=>{
+        if(!satMap.has(s.name)){
+          satMap.set(s.name,{active:null,upcoming:null});
+        }
+      });
+      if(!satMap.size){
+        renderCountdownMessages(['Next contact: none in current window.']);
+        return;
+      }
+      satMap.forEach((data,sat)=>{
+        if(data.active){
+          observerCountdownItems.push({sat,type:'active',start:data.active.start,end:data.active.end});
+        }else if(data.upcoming){
+          observerCountdownItems.push({sat,type:'upcoming',start:data.upcoming.start,end:data.upcoming.end});
+        }else{
+          observerCountdownItems.push({sat,type:'none'});
+        }
+      });
+      if(!observerCountdownItems.length){
+        renderCountdownMessages(['Next contact: none in current window.']);
+        return;
+      }
+      const update=()=>{
+        const now=Date.now();
+        const messages=[];
+        let needsReschedule=false;
+        let activeCount=0;
+        observerCountdownItems.forEach(item=>{
+          if(item.type==='none'){
+            messages.push(`${item.sat}: no contact in current window.`);
+            return;
+          }
+          const target=item.type==='active'?item.end:item.start;
+          let diff=target-now;
+          if(diff<=0){
+            if(item.type==='upcoming'){
+              item.type='active';
+              diff=item.end-now;
+              if(diff<=0){
+                messages.push(`${item.sat}: pass completed.`);
+                needsReschedule=true;
+                return;
+              }
+            }else{
+              messages.push(`${item.sat}: pass completed.`);
+              needsReschedule=true;
+              return;
+            }
+          }
+          if(item.type==='active'){
+            activeCount++;
+            messages.push(`${item.sat} overhead for ${formatDuration(diff)}`);
+          }else{
+            messages.push(`Next contact (${item.sat}) in ${formatDuration(diff)}`);
+          }
+        });
+        if(activeCount>1){
+          messages.unshift(`Overlapping contact: ${activeCount} satellites overhead.`);
+        }
+        renderCountdownMessages(messages);
+        if(needsReschedule){
+          scheduleObserverCountdown();
+        }
+      };
+      update();
+      observerCountdownTimer=setInterval(update,1000);
     }
     function dedupePush(entry){ if(!tleBank.some(x=>x.name===entry.name)) tleBank.push(entry); }
     function rebuildTleTextarea(){
@@ -472,12 +1319,12 @@ Bu sürümde:
       return results;
     }
 
-    async function computeAll(obs,days,elv){
+    async function computeAll(obs,days,elv,start=null){
       statusEl.textContent='Computing passes...';
-      const start=fixedStartUTC;
+      const startTime=start||fixedStartUTC;
       const all=[];
       for(const entry of tleBank){
-        try{ const p=await findPassesForEntry(entry,obs,start,days,elv); all.push(...p); }
+        try{ const p=await findPassesForEntry(entry,obs,startTime,days,elv); all.push(...p); }
         catch(e){console.error('compute error',e);}
       }
       all.sort((a,b)=>a.start-b.start);
@@ -487,7 +1334,11 @@ Bu sürümde:
 
     function renderResults(passes){
       latestPassResults=passes;
-      if(!passes.length){resultsContainer.innerHTML='<div class="small">No passes found.</div>';return;}
+      if(!passes.length){
+        resultsContainer.innerHTML='<div class="small">No passes found.</div>';
+        resetObserverCountdown('Next contact: none in current window.');
+        return;
+      }
       let h='<table id="resultsTable"><thead><tr><th data-key="sat">Satellite</th><th data-key="start">Start</th><th data-key="end">End</th><th data-key="maxEl">Max Elev (°)</th><th data-key="maxTime">Max Time</th><th data-key="durationMin">Duration (min)</th></tr></thead><tbody>';
       for(const x of passes){
         if(!x.start||!x.end||!x.maxTime) continue;
@@ -512,18 +1363,24 @@ Bu sürümde:
           renderResults(sorted);
         };
       });
+      scheduleObserverCountdown();
     }
+    scheduleObserverCountdown();
 
-    computeBtn.onclick=async()=>{
+    async function runPassComputation(startOverride=null){
       if(!tleBank.length){alert('No satellites/groups loaded');return;}
       const elv=normNum(elThresholdEl.value); if(elv>90){alert('Elevation threshold cannot exceed 90°');return;}
       const obs={lat:normNum(latEl.value),lon:normNum(lonEl.value),height:normNum(heightEl.value)};
       const days=normNum(daysEl.value);
       showLoading(true);
       await new Promise(r=>setTimeout(r,0));
-      try{const passes=await computeAll(obs,days,elv);renderResults(passes);}
+      try{
+        const passes=await computeAll(obs,days,elv,startOverride);
+        renderResults(passes);
+      }
       finally{showLoading(false);}
-    };
+    }
+    computeBtn.onclick=()=>{ runPassComputation(); };
 
     clearBtn.onclick=()=>{
       showLoading(true);
@@ -534,6 +1391,7 @@ Bu sürümde:
         const oc=document.getElementById('overlapContainer');
         if(oc){ oc.innerHTML=''; }
         statusEl.textContent='Results cleared.';
+        resetObserverCountdown('Next contact: —');
       }finally{setTimeout(()=>showLoading(false),150);}
     };
 
@@ -555,6 +1413,8 @@ Bu sürümde:
         latEl.value=pos.coords.latitude.toFixed(4);
         lonEl.value=pos.coords.longitude.toFixed(4);
         heightEl.value=(pos.coords.altitude||0).toFixed(0);
+        if(window.refreshObserverCoverage){ window.refreshObserverCoverage(); }
+        resetObserverCountdown('Next contact: observer changed — recompute.');
         showLoading(false);
       },e=>{alert('Could not get location: '+e.message);showLoading(false);});
     };
@@ -670,6 +1530,785 @@ Bu sürümde:
       renderOverlaps(passes);
     }
 
-  </script>
+  
+
+// === Theme Toggle ===
+const themeToggle=document.getElementById('themeToggle');
+const root=document.documentElement;
+const savedTheme=localStorage.getItem('theme')||'dark';
+root.classList.add(savedTheme);
+themeToggle.textContent=savedTheme==='light'?'🌙':'☀️';
+themeToggle.onclick=()=>{
+  const isLight=root.classList.contains('light');
+  root.classList.toggle('light',!isLight);
+  root.classList.toggle('dark',isLight);
+  const newTheme=isLight?'dark':'light';
+  localStorage.setItem('theme',newTheme);
+  themeToggle.textContent=newTheme==='light'?'🌙':'☀️';
+};
+
+// === Filter Accordion ===
+const filterBtn=document.getElementById('toggleFilterBtn');
+const filterPanel=document.getElementById('filterPanel');
+filterBtn.onclick=()=>{
+  const open=filterPanel.style.display!=='none';
+  filterPanel.style.display=open?'none':'flex';
+  filterBtn.textContent=open?'🔍 Show Filters':'❌ Hide Filters';
+};
+
+// === Fade-in Results ===
+const origRenderResults = renderResults;
+renderResults = function(passes){
+  origRenderResults(passes);
+  const rc=document.getElementById('resultsContainer');
+  rc.classList.remove('fade-in');
+  void rc.offsetWidth;
+  rc.classList.add('fade-in');
+};
+
+
+
+// === Settings Panel ===
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+
+settingsBtn.onclick = () => {
+  const open = settingsPanel.style.display === 'flex';
+  settingsPanel.style.display = open ? 'none' : 'flex';
+};
+
+// Restore saved preferences
+const savedAnim = localStorage.getItem('animSpeed') || 'normal';
+const savedTable = localStorage.getItem('tableView') || 'wide';
+document.getElementById('animSelect').value = savedAnim;
+document.getElementById('tableSelect').value = savedTable;
+document.getElementById('themeSelect').value = savedTheme;
+
+// Apply animation speed
+document.documentElement.style.setProperty('--fade-speed',
+  savedAnim==='slow'?'1.2s':savedAnim==='fast'?'0.3s':'0.6s'
+);
+
+// Handle setting changes
+document.getElementById('animSelect').onchange = e => {
+  const v=e.target.value;
+  localStorage.setItem('animSpeed',v);
+  document.documentElement.style.setProperty('--fade-speed',
+    v==='slow'?'1.2s':v==='fast'?'0.3s':'0.6s'
+  );
+};
+
+document.getElementById('tableSelect').onchange = e => {
+  const v=e.target.value;
+  localStorage.setItem('tableView',v);
+  const table=document.getElementById('resultsTable');
+  if(table){
+    table.style.fontSize=v==='compact'?'12px':'13px';
+    table.style.lineHeight=v==='compact'?'1.2':'1.6';
+  }
+};
+
+document.getElementById('themeSelect').onchange = e => {
+  const v=e.target.value;
+  root.classList.toggle('light',v==='light');
+  root.classList.toggle('dark',v==='dark');
+  localStorage.setItem('theme',v);
+  themeToggle.textContent=v==='light'?'🌙':'☀️';
+};
+
+</script>
+
+<script>
+let compactMode = false;
+
+function applyCompactMode() {
+  const table = document.querySelector("#resultsContainer table");
+  if (!table) return;
+  if (compactMode) {
+    table.classList.add("compact");
+  } else {
+    table.classList.remove("compact");
+  }
+}
+
+document.getElementById("toggleCompactBtn").addEventListener("click", () => {
+  compactMode = !compactMode;
+  applyCompactMode();
+});
+
+// Style adjustments for compact mode (desktop)
+const style = document.createElement("style");
+style.textContent = `
+  #resultsContainer table.compact thead {
+    display: none;
+  }
+  #resultsContainer table.compact tr {
+    display: block;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  #resultsContainer table.compact td {
+    display: block;
+    border: none;
+    padding: 8px 10px;
+  }
+  #resultsContainer table.compact td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    display: block;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  #resultsContainer table.compact tr:hover {
+    background: rgba(255,255,255,0.08);
+  }
+  #resultsContainer table.compact tr .details {
+    display: none;
+  }
+  #resultsContainer table.compact tr.expanded .details {
+    display: block;
+  }
+`;
+document.head.appendChild(style);
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+// Settings dropdown toggle
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsMenu = document.getElementById("settingsMenu");
+settingsBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  settingsMenu.classList.toggle("show");
+});
+document.addEventListener("click", (e) => {
+  if (!settingsMenu.contains(e.target) && e.target !== settingsBtn) {
+    settingsMenu.classList.add("hidden");
+  }
+});
+
+// Compact Mode logic
+const compactToggle = document.getElementById("compactModeToggle");
+compactToggle.addEventListener("change", () => {
+  const table = document.querySelector("#resultsContainer table");
+  if (!table) return;
+  if (compactToggle.checked) {
+    table.classList.add("compact");
+  } else {
+    table.classList.remove("compact");
+  }
+});
+
+// Add compact mode style for desktop
+const style = document.createElement("style");
+style.textContent = `
+  #resultsContainer table.compact thead {
+    display: none;
+  }
+  #resultsContainer table.compact tr {
+    display: block;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  #resultsContainer table.compact td {
+    display: block;
+    border: none;
+    padding: 8px 10px;
+  }
+  #resultsContainer table.compact td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    display: block;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  #resultsContainer table.compact tr:hover {
+    background: rgba(255,255,255,0.08);
+  }
+  #resultsContainer table.compact tr .details {
+    display: none;
+  }
+  #resultsContainer table.compact tr.expanded .details {
+    display: block;
+  }
+`;
+document.head.appendChild(style);
+});
+</script>
+
+
+<script>
+// Theme system
+const themeSelectControl = document.getElementById("themeSelect");
+
+// Load saved theme
+const storedThemeMode = localStorage.getItem("themeMode") || "dark";
+applyTheme(storedThemeMode);
+if (themeSelectControl) themeSelectControl.value = storedThemeMode;
+
+// Theme change handler
+if (themeSelectControl) {
+  themeSelectControl.addEventListener("change", () => {
+    const theme = themeSelectControl.value;
+    localStorage.setItem("themeMode", theme);
+    applyTheme(theme);
+  });
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === "dark") {
+    root.style.setProperty("--bg", "#0f1724");
+    root.style.setProperty("--card", "#0b1220");
+    root.style.setProperty("--muted", "#9aa4b2");
+    root.style.setProperty("--accent", "#3b82f6");
+    root.style.setProperty("--glass", "rgba(255,255,255,0.03)");
+    document.body.style.background = "linear-gradient(180deg,#061226 0%, #071428 100%)";
+  } else if (theme === "neutral") {
+    root.style.setProperty("--bg", "#dcdfe3");
+    root.style.setProperty("--card", "#f3f4f6");
+    root.style.setProperty("--muted", "#6b7280");
+    root.style.setProperty("--accent", "#6366f1");
+    root.style.setProperty("--glass", "rgba(255,255,255,0.6)");
+    document.body.style.background = "linear-gradient(180deg,#e5e7eb 0%, #d1d5db 100%)";
+  } else if (theme === "light") {
+    root.style.setProperty("--bg", "#f8fafc");
+    root.style.setProperty("--card", "#ffffff");
+    root.style.setProperty("--muted", "#64748b");
+    root.style.setProperty("--accent", "#2563eb");
+    root.style.setProperty("--glass", "rgba(255,255,255,0.7)");
+    document.body.style.background = "linear-gradient(180deg,#f9fafb 0%, #f1f5f9 100%)";
+  }
+}
+</script>
+
+
+<!-- === Map Modal === -->
+
+
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const mapModal = document.getElementById('mapModal');
+  const mapBtn = document.getElementById('mapBtn');
+  const closeMapBtn = document.getElementById('closeMapBtn');
+  const latInput = document.getElementById('lat');
+  const lonInput = document.getElementById('lon');
+  const heightInput = document.getElementById('height');
+  const elevationThresholdInput = document.getElementById('elThreshold');
+  const mapTimeInput = document.getElementById('mapTimeInput');
+  const mapJumpBtn = document.getElementById('mapJumpBtn');
+  const mapNowBtn = document.getElementById('mapNowBtn');
+  const mapPlayBtn = document.getElementById('mapPlayBtn');
+  const mapTimeStatus = document.getElementById('mapTimeStatus');
+  let mapInstance;
+  let baseLayers;
+  const markers = {};
+  const groundTracks = {};
+  const satelliteAltitudes = {};
+  let observerCircle;
+  let countdownControl;
+  let countdownControlDiv;
+  let trackAnimationTimer = null;
+  const TRACK_HORIZON_FUTURE_MIN = 90;
+  const TRACK_HORIZON_PAST_MIN = 30;
+  const TRACK_STEP_MIN = 3;
+  const TRACK_ANIMATION_INTERVAL_MS = 600;
+  const TRACK_DASH_SPEED = 4;
+  const TRACK_DASH_ARRAY = '14 8';
+  const LIVE_TRACK_REFRESH_THRESHOLD_MS = 60000;
+  let trackReferenceDate = new Date();
+  let mapTimeMode = 'live'; // 'live' or 'sim'
+  let mapSimTime = null;
+  let mapSimPlaying = false;
+  const MAP_SIM_STEP_MS = 1000;
+  let wheelDeltaBuffer = 0;
+  let wheelResetTimer = null;
+  const wheelThreshold = 120;
+  const SAT_COLOR_PALETTE = [
+    '#38bdf8','#f97316','#a855f7','#22d3ee','#f472b6',
+    '#4ade80','#facc15','#fb7185','#c084fc','#34d399',
+    '#60a5fa','#f87171','#fbbf24','#2dd4bf','#f472b6'
+  ];
+  const satColorCache = {};
+  window.latestCountdownMessages = window.latestCountdownMessages || ['Next contact: —'];
+  window.latestMapCountdownMessages = window.latestMapCountdownMessages || ['Next contact: —'];
+  const onWheel = e => {
+    e.preventDefault();
+    wheelDeltaBuffer += e.deltaY;
+    if (wheelResetTimer) clearTimeout(wheelResetTimer);
+    wheelResetTimer = setTimeout(() => {
+      wheelDeltaBuffer = 0;
+      wheelResetTimer = null;
+    }, 200);
+    if (Math.abs(wheelDeltaBuffer) >= wheelThreshold) {
+      if (wheelDeltaBuffer > 0) {
+        mapInstance.zoomOut();
+      } else {
+        mapInstance.zoomIn();
+      }
+      wheelDeltaBuffer = 0;
+    }
+  };
+  const parseCoord = input => {
+    if (!input) return null;
+    const value = parseFloat(String(input.value).replace(',', '.'));
+    return Number.isFinite(value) ? value : null;
+  };
+  const toRadians = deg => (deg * Math.PI) / 180;
+  const getAverageSatAltitudeKm = () => {
+    const values = Object.values(satelliteAltitudes).filter(v => Number.isFinite(v) && v > 0);
+    if (!values.length) return 550;
+    return values.reduce((sum, val) => sum + val, 0) / values.length;
+  };
+  const elevationFromPsi = (psi, satAltKm) => {
+    const R = 6371;
+    const h = Math.max(0, satAltKm);
+    const numerator = (R + h) * Math.cos(psi) - R;
+    const denominator = Math.sqrt((R + h) * (R + h) + R * R - 2 * R * (R + h) * Math.cos(psi));
+    const sinE = numerator / denominator;
+    return Math.asin(Math.max(-1, Math.min(1, sinE)));
+  };
+  const solveGroundRange = (satAltKm, elevRad) => {
+    const R = 6371;
+    const target = Math.max(0, Math.min(Math.PI / 2 - 0.0001, elevRad));
+    let low = 0;
+    let high = Math.PI / 2 - 0.0001;
+    for (let i = 0; i < 40; i++) {
+      const mid = (low + high) / 2;
+      const elev = elevationFromPsi(mid, satAltKm);
+      if (elev > target) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+    return R * ((low + high) / 2) * 1000;
+  };
+  const computeObserverRadius = () => {
+    const minElevDeg = parseFloat(String(elevationThresholdInput?.value || 0).replace(',', '.')) || 0;
+    const elevRad = toRadians(Math.min(Math.max(minElevDeg, 0), 89.9));
+    const avgAltKm = getAverageSatAltitudeKm();
+    return solveGroundRange(avgAltKm, elevRad);
+  };
+  const getObserverLocation = () => {
+    const lat = parseCoord(latInput);
+    const lon = parseCoord(lonInput);
+    const heightMeters = parseFloat(String(heightInput?.value || 0).replace(',', '.')) || 0;
+    return { lat, lon, height: heightMeters };
+  };
+  const updateObserverCoverage = () => {
+    if (!mapInstance) return;
+    const { lat, lon } = getObserverLocation();
+    if (lat === null || lon === null) {
+      if (observerCircle) {
+        mapInstance.removeLayer(observerCircle);
+        observerCircle = null;
+      }
+      return;
+    }
+    const radiusMeters = computeObserverRadius();
+    const latLng = [lat, lon];
+    const circleOptions = {
+      radius: radiusMeters,
+      color: '#f97316',
+      weight: 2.5,
+      dashArray: '8 6',
+      fillColor: '#f97316',
+      fillOpacity: 0.06,
+      opacity: 0.95
+    };
+    if (!observerCircle) {
+      observerCircle = L.circle(latLng, circleOptions).addTo(mapInstance);
+    } else {
+      observerCircle.setLatLng(latLng);
+      observerCircle.setRadius(radiusMeters);
+      observerCircle.setStyle(circleOptions);
+    }
+  };
+  window.refreshObserverCoverage = updateObserverCoverage;
+  const pad2 = v => (v < 10 ? `0${v}` : `${v}`);
+  const formatForInput = date => {
+    if (!date) return '';
+    return date.toISOString().slice(0,19);
+  };
+  const setMapTimeInputValue = date => {
+    if (mapTimeInput && date) {
+      mapTimeInput.value = formatForInput(date);
+    }
+  };
+  const parseMapTimeInput = () => {
+    if (!mapTimeInput || !mapTimeInput.value) return null;
+    const parsed = new Date(mapTimeInput.value + 'Z');
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const updatePlayButton = () => {
+    if (!mapPlayBtn) return;
+    mapPlayBtn.textContent = mapSimPlaying ? '⏸ Pause' : '▶️ Play';
+  };
+  const updateMapTimeStatus = (displayDate = null) => {
+    if (!mapTimeStatus) return;
+    if (mapTimeMode === 'live') {
+      mapTimeStatus.textContent = 'Live mode';
+      return;
+    }
+    const label = mapSimPlaying ? 'Playing' : 'Paused';
+    const timestamp = displayDate ? displayDate.toUTCString() : '—';
+    mapTimeStatus.textContent = `${label} @ ${timestamp}`;
+  };
+  const setLiveMode = () => {
+    const now = new Date();
+    mapTimeMode = 'live';
+    mapSimPlaying = false;
+    mapSimTime = null;
+    setMapTimeInputValue(now);
+    updatePlayButton();
+    updateMapTimeStatus(now);
+    rebuildAllGroundTracks(now);
+  };
+  const setSimulatedTime = (date, play=false) => {
+    const target = new Date(date);
+    mapTimeMode = 'sim';
+    mapSimTime = new Date(target);
+    mapSimPlaying = !!play;
+    setMapTimeInputValue(mapSimTime);
+    updatePlayButton();
+    updateMapTimeStatus(mapSimTime);
+    rebuildAllGroundTracks(mapSimTime);
+  };
+  const togglePlayState = () => {
+    if (mapTimeMode === 'live') {
+      mapSimTime = new Date();
+      mapTimeMode = 'sim';
+      mapSimPlaying = true;
+      setMapTimeInputValue(mapSimTime);
+      rebuildAllGroundTracks(mapSimTime);
+    } else {
+      mapSimPlaying = !mapSimPlaying;
+    }
+    updatePlayButton();
+    updateMapTimeStatus(mapSimTime);
+  };
+  const getEffectiveMapTime = () => {
+    if (mapTimeMode === 'live') {
+      updateMapTimeStatus(new Date());
+      return new Date();
+    }
+    if (!mapSimTime) mapSimTime = new Date();
+    if (mapSimPlaying) {
+      mapSimTime = new Date(mapSimTime.getTime() + MAP_SIM_STEP_MS);
+      setMapTimeInputValue(mapSimTime);
+    }
+    updateMapTimeStatus(mapSimTime);
+    return new Date(mapSimTime);
+  };
+  const ensureMapTimeInputDefault = () => {
+    if (mapTimeInput && !mapTimeInput.value) {
+      setMapTimeInputValue(new Date());
+    }
+  };
+  const getSatColor = name => {
+    if (satColorCache[name]) return satColorCache[name];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = (hash + name.charCodeAt(i) * 31) >>> 0;
+    }
+    const color = SAT_COLOR_PALETTE[hash % SAT_COLOR_PALETTE.length];
+    satColorCache[name] = color;
+    return color;
+  };
+  const getSatelliteIcon = (name, color) => L.divIcon({
+    className: 'satellite-marker',
+    html: `<div class="satellite-emoji" style="color:${color};border:2px solid ${color};background:${color}22;">🛰️</div><span style="color:${color};">${name}</span>`,
+    iconSize: [32, 42],
+    iconAnchor: [16, 20],
+    popupAnchor: [0, -20]
+  });
+  const rebuildAllGroundTracks = (referenceDate = new Date()) => {
+    trackReferenceDate = new Date(referenceDate);
+    Object.keys(groundTracks).forEach(name => {
+      groundTracks[name].layers.forEach(layer => {
+        if (mapInstance) mapInstance.removeLayer(layer);
+      });
+      delete groundTracks[name];
+    });
+    if (!mapInstance || !tleBank.length) return;
+    tleBank.forEach(s => {
+      try {
+        const rec = satellite.twoline2satrec(s.tle[0], s.tle[1]);
+        const color = getSatColor(s.name);
+        refreshGroundTrack(s.name, rec, color);
+      } catch (err) {
+        /* ignore bad TLE entries */
+      }
+    });
+  };
+  const animateTrackDashes = () => {
+    Object.keys(groundTracks).forEach(name => {
+      const track = groundTracks[name];
+      if (!track) return;
+      track.dashOffset = (track.dashOffset || 0) - TRACK_DASH_SPEED;
+      track.layers.forEach(layer => {
+        layer.setStyle({ dashOffset: `${track.dashOffset}` });
+      });
+    });
+  };
+  const ensureTrackAnimation = () => {
+    if (trackAnimationTimer) return;
+    trackAnimationTimer = setInterval(animateTrackDashes, TRACK_ANIMATION_INTERVAL_MS);
+  };
+  ensureTrackAnimation();
+  setLiveMode();
+  const ensureCountdownControl = () => {
+    if (!mapInstance || countdownControl) return;
+    countdownControl = L.control({ position: 'bottomleft' });
+    countdownControl.onAdd = function () {
+      countdownControlDiv = L.DomUtil.create('div', 'map-countdown');
+      countdownControlDiv.innerHTML = '<div>Next contact: —</div>';
+      return countdownControlDiv;
+    };
+    countdownControl.addTo(mapInstance);
+    if (window.latestMapCountdownMessages) {
+      renderCountdownOnMap(window.latestMapCountdownMessages);
+    }
+  };
+  const renderCountdownOnMap = (messages = []) => {
+    if (!countdownControlDiv) return;
+    if (!messages.length) {
+      countdownControlDiv.innerHTML = '<div>Next contact: —</div>';
+      return;
+    }
+    countdownControlDiv.innerHTML = messages.map(msg => `<div>${msg}</div>`).join('');
+  };
+  window.renderMapCountdown = messages => {
+    ensureCountdownControl();
+    renderCountdownOnMap(messages && messages.length ? messages : ['Next contact: —']);
+  };
+  const buildGroundTrackSegments = (rec, startDate) => {
+    const segments = [];
+    let currentSegment = [];
+    let prevLon = null;
+    const startMinutes = -TRACK_HORIZON_PAST_MIN;
+    const endMinutes = TRACK_HORIZON_FUTURE_MIN;
+    for (let minutes = startMinutes; minutes <= endMinutes; minutes += TRACK_STEP_MIN) {
+      const sampleDate = new Date(startDate.getTime() + minutes * 60000);
+      const pos = satellite.propagate(rec, sampleDate);
+      if (!pos.position) continue;
+      const gmst = satellite.gstime(sampleDate);
+      const geo = satellite.eciToGeodetic(pos.position, gmst);
+      const lat = satellite.degreesLat(geo.latitude);
+      const lon = satellite.degreesLong(geo.longitude);
+      if (!isFinite(lat) || !isFinite(lon)) continue;
+      if (prevLon !== null && Math.abs(lon - prevLon) > 180) {
+        if (currentSegment.length) segments.push(currentSegment);
+        currentSegment = [];
+      }
+      currentSegment.push([lat, lon]);
+      prevLon = lon;
+    }
+    if (currentSegment.length) segments.push(currentSegment);
+    return segments;
+  };
+
+  const refreshGroundTrack = (name, rec, color) => {
+    if (!mapInstance) return;
+    const prevOffset = groundTracks[name]?.dashOffset || 0;
+    if (groundTracks[name]) {
+      groundTracks[name].layers.forEach(layer => mapInstance.removeLayer(layer));
+    }
+    const segments = buildGroundTrackSegments(rec, trackReferenceDate);
+    const layers = segments.map(segment => L.polyline(segment, {
+      color,
+      weight: 2.4,
+      opacity: 0.95,
+      dashArray: TRACK_DASH_ARRAY,
+      lineCap: 'round',
+      lineJoin: 'round',
+      dashOffset: prevOffset
+    }).addTo(mapInstance));
+    groundTracks[name] = { layers, dashOffset: prevOffset, lastComputed: Date.now() };
+  };
+
+  const ensureMap = () => {
+    if (!mapInstance) {
+      mapInstance = L.map('map', {
+        worldCopyJump: true,
+      }).setView([0, 0], 2);
+
+      const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap'
+      }).addTo(mapInstance);
+
+      const satelliteImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+      });
+      const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Labels © Esri'
+      });
+      const satelliteLayer = L.layerGroup([satelliteImagery, satelliteLabels]);
+
+      baseLayers = {
+        'Street': streetLayer,
+        'Satellite': satelliteLayer
+      };
+
+      L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(mapInstance);
+
+      mapInstance.scrollWheelZoom.disable();
+      mapInstance.getContainer().addEventListener('wheel', onWheel, { passive:false });
+      window.map = mapInstance;
+    }
+    mapInstance.invalidateSize();
+    updateObserverCoverage();
+    ensureCountdownControl();
+    if (countdownControlDiv && window.latestMapCountdownMessages) {
+      renderCountdownOnMap(window.latestMapCountdownMessages);
+    }
+    ensureMapTimeInputDefault();
+  };
+
+  const showMap = () => {
+    if (!mapModal) return;
+    mapModal.style.display = 'flex';
+    mapModal.style.opacity = '1';
+    mapModal.style.visibility = 'visible';
+    mapModal.style.zIndex = '999999';
+    setTimeout(async ()=>{
+      ensureMap();
+      const override = (mapTimeMode==='sim' && mapSimTime)? new Date(mapSimTime): null;
+      await runPassComputation(override);
+    }, 400);
+  };
+
+  const hideMap = () => {
+    if (!mapModal) return;
+    mapModal.style.opacity = '0';
+    mapModal.style.visibility = 'hidden';
+    setTimeout(() => {
+      mapModal.style.display = 'none';
+    }, 300);
+  };
+
+  if (mapBtn) mapBtn.addEventListener('click', showMap);
+  if (closeMapBtn) closeMapBtn.addEventListener('click', hideMap);
+  if (mapJumpBtn) {
+    mapJumpBtn.addEventListener('click', () => {
+      const target = parseMapTimeInput();
+      if (!target) {
+        alert('Please select a valid date/time.');
+        return;
+      }
+      setSimulatedTime(target, false);
+      runPassComputation(target);
+    });
+  }
+  if (mapNowBtn) {
+    mapNowBtn.addEventListener('click', () => {
+      setLiveMode();
+      runPassComputation();
+    });
+  }
+  if (mapPlayBtn) {
+    mapPlayBtn.addEventListener('click', togglePlayState);
+  }
+  [latInput, lonInput].forEach(input => {
+    if (!input) return;
+    const handler = () => updateObserverCoverage();
+    input.addEventListener('input', handler);
+    input.addEventListener('change', handler);
+  });
+  [heightInput, elevationThresholdInput].forEach(input => {
+    if (!input) return;
+    const handler = () => updateObserverCoverage();
+    input.addEventListener('input', handler);
+    input.addEventListener('change', handler);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hideMap();
+  });
+
+  function updateSatelliteMarkers() {
+    if (!tleBank.length || !mapInstance) return;
+    const effectiveTime = getEffectiveMapTime();
+    if (mapTimeMode === 'live' && Math.abs(effectiveTime.getTime() - trackReferenceDate.getTime()) > LIVE_TRACK_REFRESH_THRESHOLD_MS) {
+      rebuildAllGroundTracks(effectiveTime);
+    }
+    const activeNames = new Set();
+    tleBank.forEach(s => {
+      try {
+        const rec = satellite.twoline2satrec(s.tle[0], s.tle[1]);
+        const pos = satellite.propagate(rec, effectiveTime);
+        if (!pos.position) return;
+        const gmst = satellite.gstime(effectiveTime);
+        const geo = satellite.eciToGeodetic(pos.position, gmst);
+        const lat = satellite.degreesLat(geo.latitude);
+        const lon = satellite.degreesLong(geo.longitude);
+        const altMeters = Math.max(0, geo.height * 1000);
+        satelliteAltitudes[s.name] = Math.max(0, geo.height);
+        const color = getSatColor(s.name);
+        const icon = getSatelliteIcon(s.name, color);
+        if (!markers[s.name]) {
+          const marker = L.marker([lat, lon], { icon }).addTo(mapInstance);
+          marker.bindPopup(`<b>${s.name}</b><br>Lat: ${lat.toFixed(2)}°<br>Lon: ${lon.toFixed(2)}°<br>Alt: ${altMeters.toFixed(0)} m`);
+          markers[s.name] = marker;
+        } else {
+          markers[s.name].setLatLng([lat, lon]);
+          markers[s.name].setIcon(icon);
+        }
+        activeNames.add(s.name);
+        const trackData = groundTracks[s.name];
+        if (!trackData) {
+          refreshGroundTrack(s.name, rec, color);
+        }
+      } catch (err) {
+        /* ignore bad TLE entries */
+      }
+    });
+    Object.keys(groundTracks).forEach(name => {
+      if (!activeNames.has(name)) {
+        groundTracks[name].layers.forEach(layer => mapInstance.removeLayer(layer));
+        delete groundTracks[name];
+      }
+    });
+    updateObserverCoverage();
+  }
+
+  setInterval(updateSatelliteMarkers, 2000);
+});
+</script>
+
+
+  <!-- 🌍 Map Modal (final version) -->
+  <div id="mapModal" style="display:none;opacity:0;visibility:hidden;position:fixed!important;inset:0;background:rgba(0,0,0,0.9)!important;z-index:999999!important;align-items:center;justify-content:center;transition:opacity 0.3s ease;">
+    <div style="width:90%;height:90%;background:#0b1220;border-radius:12px;position:relative;box-shadow:0 0 20px rgba(0,0,0,0.6);">
+      <div class="map-time-controls">
+        <span class="map-time-label">Map Time (UTC)</span>
+        <div class="map-time-row">
+          <input type="datetime-local" id="mapTimeInput" step="1">
+          <button id="mapJumpBtn">Go</button>
+        </div>
+        <div class="map-time-actions">
+          <button id="mapPlayBtn">▶️ Play</button>
+          <button id="mapNowBtn">Live</button>
+        </div>
+        <div id="mapTimeStatus">Live mode</div>
+      </div>
+      <button id="closeMapBtn" aria-label="Close map" style="position:absolute;top:14px;right:18px;background:rgba(0,0,0,0.55);color:#fff;border:0;border-radius:999px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;z-index:100002!important;">✕</button>
+      <div id="map" style="width:100%!important;height:100%!important;border-radius:12px;z-index:0;"></div>
+    </div>
+  </div>
+
 </body>
 </html>
